@@ -1,0 +1,27 @@
+﻿app = "opencounsel"
+primary_region = "bom"
+
+[build]
+
+[env]
+  PORT = "3000"
+  NODE_ENV = "production"
+  APP_MODE = "production"
+  PAYMENTS_ENABLED = "false"
+
+[[mounts]]
+  source = "opencounsel_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1

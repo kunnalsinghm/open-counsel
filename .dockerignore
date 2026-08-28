@@ -1,0 +1,10 @@
+﻿node_modules
+.next
+dev.db
+dev.db-shm
+dev.db-wal
+.env
+.git
+.gitignore
+*.log
+tsconfig.tsbuildinfo
