@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { eq, and, like } from "drizzle-orm";
-import { getDb, schema } from "@/db/client";
+import { db, schema } from "@/db/client";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -12,13 +12,11 @@ export async function GET(req: NextRequest) {
   const year = searchParams.get("year") ? Number(searchParams.get("year")) : undefined;
   const round = searchParams.get("round") ? Number(searchParams.get("round")) : undefined;
 
-  const db = await getDb();
-
-  const examSystem = db
+  const [examSystem] = await db
     .select()
     .from(schema.examSystems)
     .where(eq(schema.examSystems.code, examSystemCode))
-    .get();
+    .limit(1);
   if (!examSystem) {
     return NextResponse.json({ error: "Unknown exam system." }, { status: 404 });
   }
@@ -31,7 +29,7 @@ export async function GET(req: NextRequest) {
   if (branchCode) conditions.push(eq(schema.branches.shortCode, branchCode));
   if (instituteName) conditions.push(like(schema.institutes.name, `%${instituteName}%`));
 
-  const rows = db
+  const rows = await db
     .select({
       cutoff: schema.cutoffRecords,
       institute: schema.institutes,
@@ -41,8 +39,7 @@ export async function GET(req: NextRequest) {
     .innerJoin(schema.institutes, eq(schema.cutoffRecords.instituteId, schema.institutes.id))
     .innerJoin(schema.branches, eq(schema.cutoffRecords.branchId, schema.branches.id))
     .where(and(...conditions))
-    .limit(100)
-    .all();
+    .limit(100);
 
   if (rows.length === 0) {
     return NextResponse.json({

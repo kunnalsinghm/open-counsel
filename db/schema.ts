@@ -1,38 +1,47 @@
-import { sqliteTable, text, integer, real, uniqueIndex, index } from "drizzle-orm/sqlite-core";
-import { sql } from "drizzle-orm";
+import {
+  pgTable,
+  text,
+  integer,
+  real,
+  boolean,
+  timestamp,
+  jsonb,
+  uniqueIndex,
+  index,
+} from "drizzle-orm/pg-core";
 
 function cuid(prefix: string) {
   return `${prefix}_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
 }
 
-export const examSystems = sqliteTable("exam_systems", {
+export const examSystems = pgTable("exam_systems", {
   id: text("id").primaryKey().$defaultFn(() => cuid("exam")),
-  code: text("code").notNull().unique(), // "JOSAA"
+  code: text("code").notNull().unique(),
   name: text("name").notNull(),
   description: text("description"),
-  categories: text("categories", { mode: "json" }).notNull().$type<string[]>(),
-  quotas: text("quotas", { mode: "json" }).notNull().$type<string[]>(),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  categories: jsonb("categories").notNull().$type<string[]>(),
+  quotas: jsonb("quotas").notNull().$type<string[]>(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const institutes = sqliteTable(
+export const institutes = pgTable(
   "institutes",
   {
     id: text("id").primaryKey().$defaultFn(() => cuid("inst")),
     examSystemId: text("exam_system_id").notNull().references(() => examSystems.id),
     name: text("name").notNull(),
-    instituteType: text("institute_type").notNull(), // IIT | NIT | IIIT | GFTI | MEDICAL
+    instituteType: text("institute_type").notNull(),
     state: text("state").notNull(),
     nirfRank: integer("nirf_rank"),
     website: text("website"),
-    createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
     examTypeIdx: index("institutes_exam_type_idx").on(t.examSystemId, t.instituteType),
   })
 );
 
-export const branches = sqliteTable(
+export const branches = pgTable(
   "branches",
   {
     id: text("id").primaryKey().$defaultFn(() => cuid("branch")),
@@ -45,7 +54,7 @@ export const branches = sqliteTable(
   })
 );
 
-export const cutoffRecords = sqliteTable(
+export const cutoffRecords = pgTable(
   "cutoff_records",
   {
     id: text("id").primaryKey().$defaultFn(() => cuid("cutoff")),
@@ -61,10 +70,10 @@ export const cutoffRecords = sqliteTable(
     closingRank: integer("closing_rank").notNull(),
     sourceUrl: text("source_url"),
     sourceDocument: text("source_document"),
-    sourceDate: integer("source_date", { mode: "timestamp" }),
+    sourceDate: timestamp("source_date", { withTimezone: true }),
     dataVersion: text("data_version").notNull().default("v1"),
-    isUnavailable: integer("is_unavailable", { mode: "boolean" }).notNull().default(false),
-    createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+    isUnavailable: boolean("is_unavailable").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
     examYearRoundIdx: index("cutoffs_exam_year_round_idx").on(
@@ -88,35 +97,35 @@ export const cutoffRecords = sqliteTable(
   })
 );
 
-export const counselingRules = sqliteTable(
+export const counselingRules = pgTable(
   "counseling_rules",
   {
     id: text("id").primaryKey().$defaultFn(() => cuid("rule")),
     examSystemId: text("exam_system_id").notNull().references(() => examSystems.id),
-    topic: text("topic").notNull(), // FREEZE | FLOAT | SLIDE | WITHDRAWAL | REFUND
+    topic: text("topic").notNull(),
     title: text("title").notNull(),
     body: text("body").notNull(),
     officialUrl: text("official_url"),
-    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
     examTopicIdx: index("rules_exam_topic_idx").on(t.examSystemId, t.topic),
   })
 );
 
-export const users = sqliteTable("users", {
+export const users = pgTable("users", {
   id: text("id").primaryKey().$defaultFn(() => cuid("user")),
   email: text("email").unique(),
   name: text("name"),
   phone: text("phone"),
   state: text("state"),
   preferredLang: text("preferred_lang").notNull().default("en"),
-  isAdmin: integer("is_admin", { mode: "boolean" }).notNull().default(false),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  isAdmin: boolean("is_admin").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const studentProfiles = sqliteTable("student_profiles", {
+export const studentProfiles = pgTable("student_profiles", {
   id: text("id").primaryKey().$defaultFn(() => cuid("profile")),
   userId: text("user_id").references(() => users.id),
   examSystemCode: text("exam_system_code").notNull(),
@@ -131,41 +140,41 @@ export const studentProfiles = sqliteTable("student_profiles", {
   domicileState: text("domicile_state").notNull(),
   quota: text("quota").notNull(),
   seatPool: text("seat_pool").notNull(),
-  preferredBranches: text("preferred_branches", { mode: "json" }).notNull().$type<string[]>(),
-  preferredInstituteTypes: text("preferred_institute_types", { mode: "json" }).notNull().$type<string[]>(),
+  preferredBranches: jsonb("preferred_branches").notNull().$type<string[]>(),
+  preferredInstituteTypes: jsonb("preferred_institute_types").notNull().$type<string[]>(),
   preferenceWeighting: text("preference_weighting").notNull().default("BALANCED"),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const savedChoiceLists = sqliteTable("saved_choice_lists", {
+export const savedChoiceLists = pgTable("saved_choice_lists", {
   id: text("id").primaryKey().$defaultFn(() => cuid("list")),
   userId: text("user_id").references(() => users.id),
   profileId: text("profile_id").notNull().references(() => studentProfiles.id),
-  items: text("items", { mode: "json" }).notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  items: jsonb("items").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const reports = sqliteTable("reports", {
+export const reports = pgTable("reports", {
   id: text("id").primaryKey().$defaultFn(() => cuid("report")),
   profileId: text("profile_id").notNull().references(() => studentProfiles.id),
-  isPaid: integer("is_paid", { mode: "boolean" }).notNull().default(false),
+  isPaid: boolean("is_paid").notNull().default(false),
   pdfUrl: text("pdf_url"),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const orders = sqliteTable("orders", {
+export const orders = pgTable("orders", {
   id: text("id").primaryKey().$defaultFn(() => cuid("order")),
   userId: text("user_id").references(() => users.id),
   amountPaise: integer("amount_paise").notNull(),
   donationPaise: integer("donation_paise").notNull().default(0),
   status: text("status").notNull().default("PENDING"),
   providerOrderId: text("provider_order_id"),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const payments = sqliteTable(
+export const payments = pgTable(
   "payments",
   {
     id: text("id").primaryKey().$defaultFn(() => cuid("pay")),
@@ -174,8 +183,8 @@ export const payments = sqliteTable(
     providerPaymentId: text("provider_payment_id"),
     signature: text("signature"),
     status: text("status").notNull().default("PENDING"),
-    rawWebhook: text("raw_webhook", { mode: "json" }),
-    createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+    rawWebhook: jsonb("raw_webhook"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
     uniqProviderPayment: uniqueIndex("payments_provider_payment_uniq").on(
@@ -185,23 +194,23 @@ export const payments = sqliteTable(
   })
 );
 
-export const donations = sqliteTable("donations", {
+export const donations = pgTable("donations", {
   id: text("id").primaryKey().$defaultFn(() => cuid("don")),
   userId: text("user_id").references(() => users.id),
   donorName: text("donor_name"),
   amountPaise: integer("amount_paise").notNull(),
   transactionId: text("transaction_id"),
   status: text("status").notNull().default("PENDING"),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const chatSessions = sqliteTable("chat_sessions", {
+export const chatSessions = pgTable("chat_sessions", {
   id: text("id").primaryKey().$defaultFn(() => cuid("sess")),
   userId: text("user_id").references(() => users.id),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const chatMessages = sqliteTable(
+export const chatMessages = pgTable(
   "chat_messages",
   {
     id: text("id").primaryKey().$defaultFn(() => cuid("msg")),
@@ -211,17 +220,17 @@ export const chatMessages = sqliteTable(
     toolUsed: text("tool_used"),
     model: text("model"),
     estimatedCostPaise: integer("estimated_cost_paise").default(0),
-    createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
     sessionIdx: index("chat_messages_session_idx").on(t.sessionId),
   })
 );
 
-export const auditLogs = sqliteTable("audit_logs", {
+export const auditLogs = pgTable("audit_logs", {
   id: text("id").primaryKey().$defaultFn(() => cuid("audit")),
   userId: text("user_id").references(() => users.id),
   action: text("action").notNull(),
-  metadata: text("metadata", { mode: "json" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

@@ -1,20 +1,5 @@
-/**
- * Seed script — populates the database with:
- *  - the JoSAA exam system definition
- *  - 20 real institutes (IITs / NITs / IIITs) with real NIRF-ish ordering
- *  - 5 branches per institute
- *  - Round 1–6 opening/closing ranks for 2023 and 2024 (OPEN category,
- *    HS/OS/AI quotas, Gender-Neutral pool) — figures are illustrative,
- *    generated from realistic base ranks per institute/branch tier, NOT
- *    scraped official data. Every row is tagged with dataVersion "seed-v1"
- *    and sourceDocument "SEED_MOCK_DATA" so it is never confused with a
- *    verified official import.
- *  - Counseling rules (Freeze/Float/Slide/Withdrawal/Refund)
- *
- * Run with: npm run db:seed
- */
+import { db, schema } from "./client";
 import { eq } from "drizzle-orm";
-import { getDb, persist, schema } from "./client";
 
 const BRANCHES = [
   { name: "Computer Science and Engineering", code: "CSE", difficulty: 1.0 },
@@ -62,12 +47,17 @@ function seededRandom(seed: number) {
 }
 
 async function main() {
-  console.log("Seeding OpenCounsel database...");
-  const db = await getDb();
+  console.log("Seeding OpenCounsel database (Postgres)...");
 
-  let exam = db.select().from(schema.examSystems).where(eq(schema.examSystems.code, "JOSAA")).get();
+  let [exam] = await db
+    .select()
+    .from(schema.examSystems)
+    .where(eq(schema.examSystems.code, "JOSAA"))
+    .limit(1);
+
   if (!exam) {
-    db.insert(schema.examSystems)
+    [exam] = await db
+      .insert(schema.examSystems)
       .values({
         code: "JOSAA",
         name: "Joint Seat Allocation Authority",
@@ -75,74 +65,70 @@ async function main() {
         categories: ["OPEN", "EWS", "OBC-NCL", "SC", "ST", "PwD"],
         quotas: ["HS", "OS", "AI", "GO"],
       })
-      .run();
-    exam = db.select().from(schema.examSystems).where(eq(schema.examSystems.code, "JOSAA")).get()!;
+      .returning();
   }
 
-  const existingRules = db
+  const existingRules = await db
     .select()
     .from(schema.counselingRules)
-    .where(eq(schema.counselingRules.examSystemId, exam.id))
-    .all();
+    .where(eq(schema.counselingRules.examSystemId, exam.id));
 
   if (existingRules.length === 0) {
-    db.insert(schema.counselingRules)
-      .values([
-        {
-          examSystemId: exam.id,
-          topic: "FREEZE",
-          title: "What does Freeze mean?",
-          body: "Freezing your allotted seat means you accept it and exit the counseling process — you will not be considered in later rounds and must complete admission formalities at the allotted institute.",
-          officialUrl: "https://josaa.nic.in",
-        },
-        {
-          examSystemId: exam.id,
-          topic: "FLOAT",
-          title: "What does Float mean?",
-          body: "Floating means you accept your current seat but remain open to a better allotment in a later round based on your remaining choices. You keep your current seat as a backup if no better option comes.",
-          officialUrl: "https://josaa.nic.in",
-        },
-        {
-          examSystemId: exam.id,
-          topic: "SLIDE",
-          title: "What does Slide mean?",
-          body: "Sliding means you accept your current seat but want to be considered only for a better branch within the SAME institute in later rounds, not other institutes.",
-          officialUrl: "https://josaa.nic.in",
-        },
-        {
-          examSystemId: exam.id,
-          topic: "WITHDRAWAL",
-          title: "Seat withdrawal",
-          body: "You may withdraw from the counseling process before the official withdrawal deadline for a partial refund, subject to official rules published for that year.",
-          officialUrl: "https://josaa.nic.in",
-        },
-        {
-          examSystemId: exam.id,
-          topic: "REFUND",
-          title: "Refund policy",
-          body: "Refund amounts and deadlines are set by the counseling authority each year and are published on the official portal — always check the current year's notification.",
-          officialUrl: "https://josaa.nic.in",
-        },
-      ])
-      .run();
+    await db.insert(schema.counselingRules).values([
+      {
+        examSystemId: exam.id,
+        topic: "FREEZE",
+        title: "What does Freeze mean?",
+        body: "Freezing your allotted seat means you accept it and exit the counseling process — you will not be considered in later rounds and must complete admission formalities at the allotted institute.",
+        officialUrl: "https://josaa.nic.in",
+      },
+      {
+        examSystemId: exam.id,
+        topic: "FLOAT",
+        title: "What does Float mean?",
+        body: "Floating means you accept your current seat but remain open to a better allotment in a later round based on your remaining choices. You keep your current seat as a backup if no better option comes.",
+        officialUrl: "https://josaa.nic.in",
+      },
+      {
+        examSystemId: exam.id,
+        topic: "SLIDE",
+        title: "What does Slide mean?",
+        body: "Sliding means you accept your current seat but want to be considered only for a better branch within the SAME institute in later rounds, not other institutes.",
+        officialUrl: "https://josaa.nic.in",
+      },
+      {
+        examSystemId: exam.id,
+        topic: "WITHDRAWAL",
+        title: "Seat withdrawal",
+        body: "You may withdraw from the counseling process before the official withdrawal deadline for a partial refund, subject to official rules published for that year.",
+        officialUrl: "https://josaa.nic.in",
+      },
+      {
+        examSystemId: exam.id,
+        topic: "REFUND",
+        title: "Refund policy",
+        body: "Refund amounts and deadlines are set by the counseling authority each year and are published on the official portal — always check the current year's notification.",
+        officialUrl: "https://josaa.nic.in",
+      },
+    ]);
   }
 
-  const existingInstitutes = db
+  const existingInstitutes = await db
     .select()
     .from(schema.institutes)
-    .where(eq(schema.institutes.examSystemId, exam.id))
-    .all();
+    .where(eq(schema.institutes.examSystemId, exam.id));
+
   if (existingInstitutes.length > 0) {
-    console.log("Institutes already seeded — skipping cutoff generation. Delete dev.db to reseed from scratch.");
-    persist();
-    return;
+    console.log("Institutes already seeded — skipping cutoff generation.");
+    process.exit(0);
   }
 
   const rng = seededRandom(42);
   let cutoffCount = 0;
 
   for (const [name, type, state, baseFactor, nirfRank] of INSTITUTES) {
-    db.insert(schema.institutes)
+    const [institute] = await db
+      .insert(schema.institutes)
       .values({
         examSystemId: exam.id,
         name,
@@ -151,23 +137,13 @@ async function main() {
         nirfRank,
         website: `https://www.${name.toLowerCase().replace(/[^a-z0-9]+/g, "")}.ac.in`,
       })
-      .run();
-    const institute = db
-      .select()
-      .from(schema.institutes)
-      .where(eq(schema.institutes.name, name))
-      .get()!;
+      .returning();
 
     for (const branch of BRANCHES) {
-      db.insert(schema.branches)
+      const [branchRow] = await db
+        .insert(schema.branches)
         .values({ instituteId: institute.id, name: branch.name, shortCode: branch.code })
-        .run();
-      const branchRow = db
-        .select()
-        .from(schema.branches)
-        .where(eq(schema.branches.instituteId, institute.id))
-        .all()
-        .find((b) => b.shortCode === branch.code)!;
+        .returning();
 
       const baseClosing = Math.round(1800 * baseFactor * branch.difficulty);
       const insertBatch: (typeof schema.cutoffRecords.$inferInsert)[] = [];
@@ -210,7 +186,7 @@ async function main() {
         }
       }
 
-      db.insert(schema.cutoffRecords).values(insertBatch).run();
+      await db.insert(schema.cutoffRecords).values(insertBatch);
     }
   }
 
@@ -219,9 +195,7 @@ async function main() {
   console.log(
     "NOTE: cutoff figures are illustrative mock data for development/demo use only — NOT verified official JoSAA data. Replace via the admin data-ingestion pipeline before any real launch."
   );
-
-  persist();
-  console.log("Persisted to dev.db.");
+  process.exit(0);
 }
 
 main().catch((e) => {

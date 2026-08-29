@@ -1,13 +1,5 @@
 import { eq, and, like } from "drizzle-orm";
-import { getDb, schema } from "@/db/client";
-
-/**
- * Grounded tool functions for the AI counselor. The LLM is only allowed to
- * state cutoff-rank facts, eligibility facts, or counseling-rule facts that
- * came from one of these functions — never from its own training data. See
- * app/api/chat/route.ts for how tool results are injected before the
- * model's final answer.
- */
+import { db, schema } from "@/db/client";
 
 export async function queryCutoffs(params: {
   examSystemCode: string;
@@ -18,13 +10,11 @@ export async function queryCutoffs(params: {
   year?: number;
   round?: number;
 }) {
-  const db = await getDb();
-
-  const examSystem = db
+  const [examSystem] = await db
     .select()
     .from(schema.examSystems)
     .where(eq(schema.examSystems.code, params.examSystemCode))
-    .get();
+    .limit(1);
   if (!examSystem) return { result: "DATA_UNAVAILABLE", reason: "unknown_exam_system" };
 
   const conditions = [eq(schema.cutoffRecords.examSystemId, examSystem.id)];
@@ -36,14 +26,13 @@ export async function queryCutoffs(params: {
   if (params.instituteName)
     conditions.push(like(schema.institutes.name, `%${params.instituteName}%`));
 
-  const rows = db
+  const rows = await db
     .select({ cutoff: schema.cutoffRecords, institute: schema.institutes, branch: schema.branches })
     .from(schema.cutoffRecords)
     .innerJoin(schema.institutes, eq(schema.cutoffRecords.instituteId, schema.institutes.id))
     .innerJoin(schema.branches, eq(schema.cutoffRecords.branchId, schema.branches.id))
     .where(and(...conditions))
-    .limit(25)
-    .all();
+    .limit(25);
 
   if (rows.length === 0) return { result: "DATA_UNAVAILABLE" };
 
@@ -62,15 +51,14 @@ export async function queryCutoffs(params: {
 }
 
 export async function queryCounselingRule(params: { examSystemCode: string; topic: string }) {
-  const db = await getDb();
-  const examSystem = db
+  const [examSystem] = await db
     .select()
     .from(schema.examSystems)
     .where(eq(schema.examSystems.code, params.examSystemCode))
-    .get();
+    .limit(1);
   if (!examSystem) return { result: "DATA_UNAVAILABLE" };
 
-  const rule = db
+  const [rule] = await db
     .select()
     .from(schema.counselingRules)
     .where(
@@ -79,7 +67,7 @@ export async function queryCounselingRule(params: { examSystemCode: string; topi
         eq(schema.counselingRules.topic, params.topic.toUpperCase())
       )
     )
-    .get();
+    .limit(1);
   if (!rule) return { result: "DATA_UNAVAILABLE" };
 
   return {
@@ -91,8 +79,6 @@ export async function queryCounselingRule(params: { examSystemCode: string; topi
   };
 }
 
-/** Very small keyword-based intent router — swap for a real LLM function-call
- * router once an AI provider key is configured (see lib/ai/provider.ts). */
 export function routeIntent(message: string): "CUTOFF" | "RULE" | "RECOMMENDATION" | "GENERAL" {
   const m = message.toLowerCase();
   if (/(freeze|float|slide|withdraw|refund)/.test(m)) return "RULE";

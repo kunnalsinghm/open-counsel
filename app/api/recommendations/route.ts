@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { eq, and } from "drizzle-orm";
-import { getDb, schema } from "@/db/client";
+import { db, schema } from "@/db/client";
 import { generateChoiceList } from "@/lib/recommendation-engine";
 import { lintChoiceList } from "@/lib/linter";
 import type { CutoffRow, StudentProfileInput } from "@/lib/types";
@@ -51,13 +51,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const db = await getDb();
-
-  const examSystem = db
+  const [examSystem] = await db
     .select()
     .from(schema.examSystems)
     .where(eq(schema.examSystems.code, profile.examSystemCode))
-    .get();
+    .limit(1);
 
   if (!examSystem) {
     return NextResponse.json(
@@ -66,7 +64,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const rawCutoffs = db
+  const rawCutoffs = await db
     .select({
       cutoff: schema.cutoffRecords,
       institute: schema.institutes,
@@ -80,8 +78,7 @@ export async function POST(req: NextRequest) {
         eq(schema.cutoffRecords.examSystemId, examSystem.id),
         eq(schema.cutoffRecords.isUnavailable, false)
       )
-    )
-    .all();
+    );
 
   if (rawCutoffs.length === 0) {
     return NextResponse.json(
