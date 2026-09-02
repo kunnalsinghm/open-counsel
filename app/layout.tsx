@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import AuthStatus from "@/components/AuthStatus";
+import ChatWidget from "@/components/ChatWidget";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -20,6 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <nav className="flex items-center gap-4 text-sm text-slate-600">
               <Link href="/profile">Build My List</Link>
               <Link href="/contact">Contact</Link>
+              <AuthStatus />
             </nav>
           </div>
         </header>
@@ -38,6 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </div>
         </footer>
+        <ChatWidget />
       </body>
     </html>
   );

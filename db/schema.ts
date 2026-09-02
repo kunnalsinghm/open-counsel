@@ -133,6 +133,8 @@ export const studentProfiles = pgTable("student_profiles", {
   round: integer("round").notNull(),
   crlRank: integer("crl_rank"),
   categoryRank: integer("category_rank"),
+  jeeAdvancedRank: integer("jee_advanced_rank"),
+  jeeAdvancedCategoryRank: integer("jee_advanced_category_rank"),
   percentile: real("percentile"),
   category: text("category").notNull(),
   gender: text("gender").notNull(),

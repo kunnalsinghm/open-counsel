@@ -12,6 +12,7 @@
     "lint": "next lint",
     "db:push": "drizzle-kit push",
     "db:seed": "tsx --env-file=.env db/seed.ts",
+    "ingest": "tsx --env-file=.env scripts/ingest/import-cutoffs.ts",
     "test": "vitest run"
   },
   "dependencies": {

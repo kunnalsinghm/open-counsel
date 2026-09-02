@@ -24,6 +24,9 @@ export default function ProfileForm() {
     round: 6,
     crlRank: "",
     categoryRank: "",
+    appearedJeeAdvanced: false,
+    jeeAdvancedRank: "",
+    jeeAdvancedCategoryRank: "",
     category: "OPEN",
     gender: "MALE" as "MALE" | "FEMALE" | "OTHER",
     homeState: "West Bengal",
@@ -48,6 +51,14 @@ export default function ProfileForm() {
         ...form,
         crlRank: form.crlRank ? Number(form.crlRank) : undefined,
         categoryRank: form.categoryRank ? Number(form.categoryRank) : undefined,
+        jeeAdvancedRank:
+          form.appearedJeeAdvanced && form.jeeAdvancedRank
+            ? Number(form.jeeAdvancedRank)
+            : undefined,
+        jeeAdvancedCategoryRank:
+          form.appearedJeeAdvanced && form.jeeAdvancedCategoryRank
+            ? Number(form.jeeAdvancedCategoryRank)
+            : undefined,
       };
       const res = await fetch("/api/recommendations", {
         method: "POST",
@@ -100,9 +111,14 @@ export default function ProfileForm() {
 
       <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-5">
         <h2 className="font-semibold text-slate-800">2. Rank</h2>
+        <p className="text-xs text-slate-500">
+          JoSAA allocates NIT / IIIT / GFTI seats using your JEE Main rank, and IIT seats
+          using your JEE Advanced rank — these are different exams with different rank
+          pools. Fill in whichever apply to you.
+        </p>
         <div className="grid grid-cols-2 gap-4">
           <label className="text-sm">
-            CRL Rank
+            JEE Main CRL Rank
             <input
               type="number"
               className="mt-1 w-full rounded-md border border-slate-300 p-2"
@@ -112,7 +128,7 @@ export default function ProfileForm() {
             />
           </label>
           <label className="text-sm">
-            Category Rank (optional)
+            JEE Main Category Rank (optional)
             <input
               type="number"
               className="mt-1 w-full rounded-md border border-slate-300 p-2"
@@ -120,6 +136,45 @@ export default function ProfileForm() {
               onChange={(e) => setForm({ ...form, categoryRank: e.target.value })}
             />
           </label>
+        </div>
+        <div className="rounded-md bg-slate-50 p-3">
+          <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+            <input
+              type="checkbox"
+              checked={form.appearedJeeAdvanced}
+              onChange={(e) =>
+                setForm({ ...form, appearedJeeAdvanced: e.target.checked })
+              }
+            />
+            I appeared for JEE Advanced (required for any IIT recommendations)
+          </label>
+          {form.appearedJeeAdvanced && (
+            <div className="mt-3 grid grid-cols-2 gap-4">
+              <label className="text-sm">
+                JEE Advanced AIR (All-India Rank)
+                <input
+                  type="number"
+                  className="mt-1 w-full rounded-md border border-slate-300 p-2"
+                  value={form.jeeAdvancedRank}
+                  onChange={(e) =>
+                    setForm({ ...form, jeeAdvancedRank: e.target.value })
+                  }
+                  placeholder="e.g. 3200"
+                />
+              </label>
+              <label className="text-sm">
+                JEE Advanced Category Rank (optional)
+                <input
+                  type="number"
+                  className="mt-1 w-full rounded-md border border-slate-300 p-2"
+                  value={form.jeeAdvancedCategoryRank}
+                  onChange={(e) =>
+                    setForm({ ...form, jeeAdvancedCategoryRank: e.target.value })
+                  }
+                />
+              </label>
+            </div>
+          )}
         </div>
         <label className="text-sm">
           Category

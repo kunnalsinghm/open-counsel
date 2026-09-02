@@ -1,5 +1,4 @@
 "use client";
-
 import { useState } from "react";
 import { MessageCircle, X, Send } from "lucide-react";
 
@@ -26,16 +25,43 @@ export default function ChatWidget() {
     setMessages(next);
     setInput("");
     setLoading(true);
+
+    const withPlaceholder = [...next, { role: "assistant", content: "" } as Msg];
+    setMessages(withPlaceholder);
+
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text }),
       });
-      const data = await res.json();
-      setMessages([...next, { role: "assistant", content: data.reply ?? "Sorry, I couldn't answer that." }]);
+
+      if (!res.ok || !res.body) {
+        setMessages([...next, { role: "assistant", content: "Sorry, I couldn't answer that." }]);
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulated = "";
+      let first = true;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        accumulated += decoder.decode(value, { stream: true });
+        if (first) {
+          setLoading(false);
+          first = false;
+        }
+        setMessages([...next, { role: "assistant", content: accumulated }]);
+      }
+
+      if (!accumulated) {
+        setMessages([...next, { role: "assistant", content: "Sorry, I couldn't generate a response." }]);
+      }
     } catch {
-      setMessages([...next, { role: "assistant", content: "Network error — please try again." }]);
+      setMessages([...next, { role: "assistant", content: "Network error - please try again." }]);
     } finally {
       setLoading(false);
     }
@@ -86,14 +112,14 @@ export default function ChatWidget() {
             {m.content}
           </div>
         ))}
-        {loading && <p className="text-xs text-slate-400">Thinking…</p>}
+        {loading && <p className="text-xs text-slate-400">Thinking...</p>}
       </div>
       <div className="flex gap-2 border-t border-slate-200 p-2">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && send(input)}
-          placeholder="Ask about cutoffs or rules…"
+          placeholder="Ask about cutoffs or rules..."
           className="flex-1 rounded-md border border-slate-300 p-2 text-xs"
         />
         <button onClick={() => send(input)} className="rounded-md bg-brand-600 px-3 text-white">

@@ -4,12 +4,13 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import ChoiceTable from "@/components/ChoiceTable";
 import DonationModal from "@/components/DonationModal";
-import ChatWidget from "@/components/ChatWidget";
 import { exportCsv, exportPdf } from "@/lib/export";
 import { lintChoiceList } from "@/lib/linter";
 import { PAYMENTS_ENABLED, PRICE_PAISE } from "@/lib/config";
+import { createClient } from "@/lib/supabase/client";
 import type { ChoiceListItem, LintIssue, StudentProfileInput } from "@/lib/types";
-import { AlertTriangle, Download, FileText } from "lucide-react";
+import { AlertTriangle, Download, FileText, Save } from "lucide-react";
+import Link from "next/link";
 
 export default function ResultsPage() {
   const router = useRouter();
@@ -18,6 +19,7 @@ export default function ResultsPage() {
   const [issues, setIssues] = useState<LintIssue[]>([]);
   const [showDonation, setShowDonation] = useState(false);
   const [unlocked, setUnlocked] = useState(!PAYMENTS_ENABLED);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   useEffect(() => {
     const p = sessionStorage.getItem("opencounsel:profile");
@@ -39,12 +41,38 @@ export default function ResultsPage() {
     }
   }, [items, profile]);
 
-  if (!profile) return <div className="p-8 text-center text-slate-500">Loading…</div>;
+  async function handleSave() {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      router.push("/login?redirect=/results");
+      return;
+    }
+
+    setSaveState("saving");
+    try {
+      const res = await fetch("/api/save-list", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profile, items }),
+      });
+      if (!res.ok) throw new Error("save failed");
+      setSaveState("saved");
+    } catch {
+      setSaveState("error");
+    }
+  }
+
+  if (!profile) return <div className="p-8 text-center text-slate-500">Loading...</div>;
 
   const dream = items.filter((i) => i.riskBand === "DREAM");
   const target = items.filter((i) => i.riskBand === "TARGET");
   const safe = items.filter((i) => i.riskBand === "SAFE");
-  const studentRank = profile.categoryRank ?? profile.crlRank;
+  const jeeMainRank = profile.categoryRank ?? profile.crlRank;
+  const jeeAdvRank = profile.jeeAdvancedCategoryRank ?? profile.jeeAdvancedRank;
   const visibleItems = unlocked ? items : items.slice(0, 5);
 
   return (
@@ -52,7 +80,10 @@ export default function ResultsPage() {
       <section className="rounded-xl border border-slate-200 bg-white p-5">
         <h1 className="text-xl font-bold text-slate-900">Your Admission Snapshot</h1>
         <div className="mt-2 grid grid-cols-2 gap-2 text-sm text-slate-600 sm:grid-cols-4">
-          <p><span className="font-semibold">Rank:</span> {studentRank?.toLocaleString("en-IN")}</p>
+          <p><span className="font-semibold">JEE Main Rank:</span> {jeeMainRank ? jeeMainRank.toLocaleString("en-IN") : "-"}</p>
+          {jeeAdvRank && (
+            <p><span className="font-semibold">JEE Advanced Rank:</span> {jeeAdvRank.toLocaleString("en-IN")}</p>
+          )}
           <p><span className="font-semibold">Category:</span> {profile.category}</p>
           <p><span className="font-semibold">Home State:</span> {profile.homeState}</p>
           <p><span className="font-semibold">Counseling:</span> {profile.examSystemCode}</p>
@@ -104,6 +135,20 @@ export default function ResultsPage() {
           <h2 className="font-semibold text-slate-800">Your Choice Strategy (drag to reorder)</h2>
           <div className="flex gap-2">
             <button
+              onClick={handleSave}
+              disabled={saveState === "saving" || saveState === "saved"}
+              className="flex items-center gap-1 rounded-md border border-brand-300 bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700 disabled:opacity-60"
+            >
+              <Save className="h-3.5 w-3.5" />
+              {saveState === "saved"
+                ? "Saved!"
+                : saveState === "saving"
+                ? "Saving..."
+                : saveState === "error"
+                ? "Retry save"
+                : "Save my list"}
+            </button>
+            <button
               onClick={() => exportCsv(items)}
               disabled={!unlocked}
               className="flex items-center gap-1 rounded-md border border-slate-300 px-3 py-1.5 text-xs text-slate-700 disabled:opacity-40"
@@ -126,7 +171,7 @@ export default function ResultsPage() {
               Showing top 5 of {items.length} recommendations.
             </p>
             <p className="mt-1 text-xs text-brand-700">
-              Unlock Complete Choice List — ₹{PRICE_PAISE / 100}
+              Unlock Complete Choice List - Rs.{PRICE_PAISE / 100}
             </p>
             <button
               onClick={() => setUnlocked(true)}
@@ -140,17 +185,25 @@ export default function ResultsPage() {
         <ChoiceTable items={visibleItems} setItems={unlocked ? setItems : () => {}} />
       </section>
 
+      <div className="mt-6 text-center">
+        <Link
+          href="/simulator"
+          className="inline-block rounded-lg border border-brand-300 bg-brand-50 px-5 py-2.5 text-sm font-semibold text-brand-700 hover:bg-brand-100"
+        >
+          Simulate Round-by-Round Outcomes -&gt;
+        </Link>
+      </div>
+
       <div className="mt-8 text-center">
         <button
           onClick={() => setShowDonation(true)}
           className="text-sm text-brand-600 underline"
         >
-          Support OpenCounsel — buy us a coffee
+          Support OpenCounsel - buy us a coffee
         </button>
       </div>
 
       {showDonation && <DonationModal onClose={() => setShowDonation(false)} />}
-      <ChatWidget />
     </div>
   );
 }

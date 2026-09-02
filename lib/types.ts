@@ -2,23 +2,24 @@ export type RiskBand = "DREAM" | "TARGET" | "SAFE";
 export type Confidence = "HIGH" | "MEDIUM" | "LOW";
 
 export interface StudentProfileInput {
-  examSystemCode: string; // "JOSAA"
+  examSystemCode: string;
   year: number;
   round: number;
   crlRank?: number;
   categoryRank?: number;
-  category: string; // "OPEN" | "EWS" | "OBC-NCL" | "SC" | "ST" | "PwD"
+  jeeAdvancedRank?: number;
+  jeeAdvancedCategoryRank?: number;
+  category: string;
   gender: "MALE" | "FEMALE" | "OTHER";
   homeState: string;
   domicileState: string;
-  quota: string; // "HS" | "OS" | "AI" | "GO"
+  quota: string;
   seatPool: "Gender-Neutral" | "Female-Only";
-  preferredBranches: string[]; // short codes, e.g. ["CSE","ECE"]
-  preferredInstituteTypes: string[]; // ["IIT","NIT","IIIT"]
+  preferredBranches: string[];
+  preferredInstituteTypes: string[];
   preferenceWeighting: "COLLEGE_OVER_BRANCH" | "BRANCH_OVER_COLLEGE" | "BALANCED";
 }
 
-// A single historical cutoff row, already resolved with institute/branch names.
 export interface CutoffRow {
   instituteId: string;
   instituteName: string;
@@ -46,11 +47,12 @@ export interface ChoiceListItem {
   branchName: string;
   branchShortCode: string;
   quota: string;
+  seatPool: string;
   category: string;
   historicalOpeningRank: number;
   historicalClosingRank: number;
   studentRank: number;
-  rankGapPercent: number; // (closingRank - studentRank) / closingRank * 100
+  rankGapPercent: number;
   riskBand: RiskBand;
   confidence: Confidence;
   reason: string;

@@ -7,40 +7,29 @@ import type {
   StudentProfileInput,
 } from "./types";
 
-/**
- * The recommendation pipeline is intentionally split into independently
- * testable stages, per the product spec:
- *
- *   EligibilityEngine -> CutoffEngine -> PreferenceEngine -> RiskEngine
- *   -> ChoiceOptimizer -> ExplanationEngine
- *
- * The LLM never touches this file. All ordering and classification here is
- * deterministic and fully explainable.
- */
-
-// ---------- 1. EligibilityEngine ----------
-
 export function isEligible(row: CutoffRow, profile: StudentProfileInput): boolean {
   if (row.quota !== profile.quota) return false;
   if (row.seatPool !== profile.seatPool) return false;
   if (row.category !== profile.category) return false;
 
-  // Home-state quota sanity check: "HS" (Home State) quota is only valid
-  // when the student's domicile matches the institute's state-linked quota.
-  // (For central institutes like IITs this doesn't apply; NITs/state quota
-  // seats do enforce this.)
   if (profile.quota === "HS" && profile.domicileState !== profile.homeState) {
+    return false;
+  }
+
+  if (row.instituteType === "IIT" && !profile.jeeAdvancedRank && !profile.jeeAdvancedCategoryRank) {
     return false;
   }
 
   return true;
 }
 
-// ---------- 2. CutoffEngine ----------
-
-export function getStudentRankForComparison(profile: StudentProfileInput): number {
-  // Category rank is used when available (it's what actually determines
-  // eligibility against category-specific cutoffs); fall back to CRL.
+export function getStudentRankForComparison(
+  profile: StudentProfileInput,
+  instituteType: string
+): number {
+  if (instituteType === "IIT") {
+    return profile.jeeAdvancedCategoryRank ?? profile.jeeAdvancedRank ?? Number.POSITIVE_INFINITY;
+  }
   return profile.categoryRank ?? profile.crlRank ?? Number.POSITIVE_INFINITY;
 }
 
@@ -48,8 +37,6 @@ function rankGapPercent(closingRank: number, studentRank: number): number {
   if (closingRank <= 0) return -Infinity;
   return ((closingRank - studentRank) / closingRank) * 100;
 }
-
-// ---------- 3. RiskEngine ----------
 
 export function classifyBand(gapPercent: number): RiskBand {
   if (gapPercent >= T.SAFE_MIN_GAP_PERCENT) return "SAFE";
@@ -70,12 +57,8 @@ function computeTrend(sameComboAcrossYears: CutoffRow[]): "TIGHTENING" | "LOOSEN
   const last = sorted[sorted.length - 1].closingRank;
   const delta = ((last - first) / first) * 100;
   if (Math.abs(delta) < 5) return "STABLE";
-  // Closing rank getting lower (numerically smaller) over years = tightening
-  // (harder to get in). Getting larger = loosening (easier).
   return delta < 0 ? "TIGHTENING" : "LOOSENING";
 }
-
-// ---------- 4. PreferenceEngine ----------
 
 function preferenceUtility(
   row: CutoffRow,
@@ -102,8 +85,6 @@ function preferenceUtility(
   return score;
 }
 
-// ---------- 5. ChoiceOptimizer + 6. ExplanationEngine ----------
-
 export interface GenerateChoiceListOptions {
   latestYear: number;
 }
@@ -113,10 +94,10 @@ export function generateChoiceList(
   profile: StudentProfileInput,
   options: GenerateChoiceListOptions
 ): ChoiceListItem[] {
-  const studentRank = getStudentRankForComparison(profile);
-  if (!Number.isFinite(studentRank)) return [];
+  const hasJeeMain = Number.isFinite(getStudentRankForComparison(profile, "NIT"));
+  const hasJeeAdvanced = Number.isFinite(getStudentRankForComparison(profile, "IIT"));
+  if (!hasJeeMain && !hasJeeAdvanced) return [];
 
-  // Group historical rows by institute+branch+quota+category+seatPool combo
   const byCombo = new Map<string, CutoffRow[]>();
   for (const row of allCutoffs) {
     if (!isEligible(row, profile)) continue;
@@ -129,12 +110,14 @@ export function generateChoiceList(
   const items: ChoiceListItem[] = [];
 
   for (const [, rows] of byCombo) {
-    // Use the most recent year's closing rank as the primary reference point.
     const latest = rows
       .filter((r) => r.year === options.latestYear)
       .sort((a, b) => b.round - a.round)[0] ?? rows.sort((a, b) => b.year - a.year)[0];
 
     if (!latest) continue;
+
+    const studentRank = getStudentRankForComparison(profile, latest.instituteType);
+    if (!Number.isFinite(studentRank)) continue;
 
     const gap = rankGapPercent(latest.closingRank, studentRank);
     const band = classifyBand(gap);
@@ -143,11 +126,9 @@ export function generateChoiceList(
     const confidence = classifyConfidence(years, trend);
     const utility = preferenceUtility(latest, profile);
 
-    // Exclude combos where the student's rank is far outside even a DREAM
-    // shot (more than 15% worse than closing rank) — not realistically
-    // worth listing.
     if (gap < T.DREAM_MIN_GAP_PERCENT) continue;
 
+    const rankTypeLabel = latest.instituteType === "IIT" ? "JEE Advanced" : "JEE Main";
     const reasonParts: string[] = [];
     reasonParts.push(
       `In ${latest.year} Round ${latest.round}, ${latest.instituteName} ${latest.branchShortCode} (${latest.quota}, ${latest.category}) closed at rank ${latest.closingRank.toLocaleString(
@@ -155,7 +136,7 @@ export function generateChoiceList(
       )}.`
     );
     reasonParts.push(
-      `Your comparison rank of ${studentRank.toLocaleString("en-IN")} is ${
+      `Your ${rankTypeLabel} comparison rank of ${studentRank.toLocaleString("en-IN")} is ${
         gap >= 0 ? `${gap.toFixed(1)}% better` : `${Math.abs(gap).toFixed(1)}% worse`
       } than that closing rank.`
     );
@@ -166,7 +147,7 @@ export function generateChoiceList(
     }
 
     items.push({
-      preferenceNumber: 0, // assigned after sorting
+      preferenceNumber: 0,
       instituteId: latest.instituteId,
       instituteName: latest.instituteName,
       instituteType: latest.instituteType,
@@ -174,6 +155,7 @@ export function generateChoiceList(
       branchName: latest.branchName,
       branchShortCode: latest.branchShortCode,
       quota: latest.quota,
+      seatPool: latest.seatPool,
       category: latest.category,
       historicalOpeningRank: latest.openingRank,
       historicalClosingRank: latest.closingRank,
@@ -186,15 +168,9 @@ export function generateChoiceList(
       trendDirection: trend,
     });
 
-    // stash utility for sorting without adding it to the public type
     (items[items.length - 1] as any).__utility = utility;
   }
 
-  // Ordering rule: DREAM first, then TARGET, then SAFE (mathematically
-  // optimal default per spec) — within each band, sort by preference
-  // utility (branch/college fit) descending, then by tightest realistic
-  // gap first (closest to the student's actual rank) so the most
-  // "efficient" choices within a band come first.
   const bandOrder: Record<RiskBand, number> = { DREAM: 0, TARGET: 1, SAFE: 2 };
   items.sort((a, b) => {
     if (bandOrder[a.riskBand] !== bandOrder[b.riskBand]) {

@@ -12,6 +12,8 @@ const ProfileSchema = z.object({
   round: z.number(),
   crlRank: z.number().optional(),
   categoryRank: z.number().optional(),
+  jeeAdvancedRank: z.number().optional(),
+  jeeAdvancedCategoryRank: z.number().optional(),
   category: z.string(),
   gender: z.enum(["MALE", "FEMALE", "OTHER"]),
   homeState: z.string(),
@@ -44,9 +46,17 @@ export async function POST(req: NextRequest) {
   }
   const profile = parsed.data as StudentProfileInput;
 
-  if (!profile.crlRank && !profile.categoryRank) {
+  if (
+    !profile.crlRank &&
+    !profile.categoryRank &&
+    !profile.jeeAdvancedRank &&
+    !profile.jeeAdvancedCategoryRank
+  ) {
     return NextResponse.json(
-      { error: "At least one of crlRank or categoryRank is required." },
+      {
+        error:
+          "At least one rank is required: JEE Main (crlRank/categoryRank) and/or JEE Advanced (jeeAdvancedRank/jeeAdvancedCategoryRank).",
+      },
       { status: 400 }
     );
   }

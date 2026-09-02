@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { queryCounselingRule, queryCutoffs, routeIntent } from "@/lib/ai/tools";
-import { callAi } from "@/lib/ai/provider";
+import { streamAi } from "@/lib/ai/provider";
 
 const SYSTEM_PROMPT = `You are the OpenCounsel AI Admission Counselor.
 Rules you must always follow:
 - Never invent cutoff ranks, fees, eligibility rules, deadlines, or seat rules.
 - Only state factual cutoff/rule information that appears in the "grounded context" provided to you.
 - If grounded context says DATA_UNAVAILABLE, say clearly that the information isn't available and suggest checking the official portal.
-- Structure factual answers as: Short Answer / Based On Your Profile / Evidence / What I Recommend / Important (always end with: "Verify the latest official counseling notification before making an irreversible decision.")
-- You do not decide eligibility or final choice ordering — the deterministic recommendation engine does that. You explain and assist only.`;
+- Be concise. For simple questions (one topic, a definition, a yes/no), answer in 2-4 sentences with at most one short source citation. Do not use headers or bullet sections for simple questions.
+- Only use a structured format (Short Answer / Evidence / What I Recommend) for genuinely complex, multi-part questions where structure actually helps.
+- Always end every response with exactly this line on its own: "Verify the latest official counseling notification before making an irreversible decision."
+- You do not decide eligibility or final choice ordering - the deterministic recommendation engine does that. You explain and assist only.`;
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
@@ -22,19 +24,24 @@ export async function POST(req: NextRequest) {
   let groundedContext = "";
 
   if (intent === "RULE") {
-    const topic = /freeze/i.test(message)
-      ? "FREEZE"
-      : /float/i.test(message)
-      ? "FLOAT"
-      : /slide/i.test(message)
-      ? "SLIDE"
-      : /withdraw/i.test(message)
-      ? "WITHDRAWAL"
-      : /refund/i.test(message)
-      ? "REFUND"
-      : "";
-    const result = await queryCounselingRule({ examSystemCode, topic });
-    groundedContext = JSON.stringify(result);
+    const topicPatterns: Record<string, RegExp> = {
+      FREEZE: /freeze/i,
+      FLOAT: /float/i,
+      SLIDE: /slide/i,
+      WITHDRAWAL: /withdraw/i,
+      REFUND: /refund/i,
+    };
+    const matchedTopics = Object.keys(topicPatterns).filter((t) => topicPatterns[t].test(message));
+    if (matchedTopics.length === 0) matchedTopics.push("");
+    const results = await Promise.all(
+      matchedTopics.map((topic) => queryCounselingRule({ examSystemCode, topic }))
+    );
+    groundedContext = JSON.stringify(
+      matchedTopics.reduce((acc, topic, i) => {
+        acc[topic || "GENERAL"] = results[i];
+        return acc;
+      }, {} as Record<string, unknown>)
+    );
   } else if (intent === "CUTOFF") {
     const result = await queryCutoffs({ examSystemCode });
     groundedContext = JSON.stringify(result).slice(0, 4000);
@@ -42,11 +49,16 @@ export async function POST(req: NextRequest) {
     groundedContext = "No database lookup was needed for this question.";
   }
 
-  const aiResult = await callAi({
+  const stream = streamAi({
     systemPrompt: SYSTEM_PROMPT,
     userMessage: message,
     groundedContext,
   });
 
-  return NextResponse.json({ reply: aiResult.text, model: aiResult.model, intent });
+  return new Response(stream, {
+    headers: {
+      "content-type": "text/plain; charset=utf-8",
+      "x-chat-intent": intent,
+    },
+  });
 }
