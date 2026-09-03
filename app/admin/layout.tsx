@@ -1,4 +1,4 @@
-﻿import { redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { getAdminUser } from "@/lib/admin-guard";
 import Link from "next/link";
 
@@ -19,6 +19,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <Link href="/admin/data" className="text-slate-600 hover:text-brand-600">Data</Link>
             <Link href="/admin/usage" className="text-slate-600 hover:text-brand-600">Usage</Link>
             <Link href="/admin/pricing" className="text-slate-600 hover:text-brand-600">Pricing</Link>
+            <Link href="/admin/rules" className="text-slate-600 hover:text-brand-600">Rules</Link>
             <Link href="/" className="text-slate-400 hover:text-slate-600">Exit</Link>
           </nav>
         </div>
