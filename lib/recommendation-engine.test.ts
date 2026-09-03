@@ -1,4 +1,4 @@
-﻿import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vitest";
 import {
   isEligible,
   getStudentRankForComparison,
@@ -32,7 +32,13 @@ function makeCutoff(overrides: Partial<CutoffRow> = {}): CutoffRow {
     instituteId: "inst_1",
     instituteName: "NIT Durgapur",
     instituteType: "NIT",
-    state: "West Bengal",
+    // Default quota is "OS" (Other State), so the default institute state
+    // must differ from the default profile homeState ("West Bengal") -
+    // otherwise this fixture describes a contradictory OS-quota-but-
+    // home-state institute, which the (now-fixed) eligibility check
+    // correctly rejects. HS-specific tests below override both quota and
+    // state/homeState explicitly, so they're unaffected by this default.
+    state: "Karnataka",
     nirfRank: 50,
     branchId: "branch_1",
     branchName: "Computer Science",
@@ -76,7 +82,12 @@ describe("isEligible", () => {
 
   it("passes HS quota when domicile state matches home state", () => {
     const profile = makeProfile({ quota: "HS", homeState: "West Bengal", domicileState: "West Bengal" });
-    expect(isEligible(makeCutoff({ quota: "HS" }), profile)).toBe(true);
+    // HS eligibility now correctly checks the institute's own state
+    // (row.state) against the student's home state, so this fixture must
+    // explicitly place the institute in West Bengal to be a valid HS case -
+    // the makeCutoff() default state is deliberately "Karnataka" to support
+    // the OS-quota tests above.
+    expect(isEligible(makeCutoff({ quota: "HS", state: "West Bengal" }), profile)).toBe(true);
   });
 
   it("fails IIT rows when student has no JEE Advanced rank", () => {

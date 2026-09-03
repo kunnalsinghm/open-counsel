@@ -12,7 +12,20 @@ export function isEligible(row: CutoffRow, profile: StudentProfileInput): boolea
   if (row.seatPool !== profile.seatPool) return false;
   if (row.category !== profile.category) return false;
 
-  if (profile.quota === "HS" && profile.domicileState !== profile.homeState) {
+  // HS (Home State) quota: only institutes located in the student's home
+  // state are eligible. OS (Other State) quota: only institutes OUTSIDE the
+  // student's home state are eligible. AI/GO quotas have no state
+  // restriction and fall through unaffected.
+  //
+  // BUGFIX: this previously compared profile.domicileState to
+  // profile.homeState - two fields on the same student profile - which
+  // never actually checked the institute's state (row.state) at all, so
+  // every row got the same true/false answer regardless of which
+  // institute was being evaluated.
+  if (profile.quota === "HS" && row.state !== profile.homeState) {
+    return false;
+  }
+  if (profile.quota === "OS" && row.state === profile.homeState) {
     return false;
   }
 
