@@ -5,7 +5,7 @@ import ChatWidget from "@/components/ChatWidget";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "OpenCounsel — Free Admission Choice-Filling Simulator",
+  title: "OpenCounsel â€” Free Admission Choice-Filling Simulator",
   description:
     "Build a smarter JoSAA/CSAB/NEET/State CET choice list based on historical cutoff data. 100% free, independent educational tool.",
 };
@@ -21,6 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </Link>
             <nav className="flex items-center gap-4 text-sm text-slate-600">
               <Link href="/profile">Build My List</Link>
+              <Link href="/compare">Compare Colleges</Link>
               <Link href="/contact">Contact</Link>
               <AuthStatus />
             </nav>
