@@ -29,6 +29,181 @@ interface CutoffRow {
   isUnavailable: boolean;
 }
 
+interface IngestionIssue {
+  severity: "ERROR" | "WARNING";
+  rowNumber: number;
+  code: string;
+  message: string;
+}
+
+interface UploadReport {
+  totalRows: number;
+  validRows: number;
+  errors: IngestionIssue[];
+  warnings: IngestionIssue[];
+  newInstitutes: string[];
+  newBranches: string[];
+  committed: boolean;
+  inserted: number;
+  updated: number;
+  skippedAsDuplicateOfPublished: number;
+}
+
+function UploadSection({ onCommitted }: { onCommitted: () => void }) {
+  const [file, setFile] = useState<File | null>(null);
+  const [examSystemCode, setExamSystemCode] = useState("JOSAA");
+  const [dataVersion, setDataVersion] = useState("");
+  const [overwrite, setOverwrite] = useState(false);
+  const [report, setReport] = useState<UploadReport | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<"idle" | "checking" | "committing">("idle");
+
+  async function runUpload(commit: boolean) {
+    if (!file) return;
+    setUploadError(null);
+    setBusy(commit ? "committing" : "checking");
+    try {
+      const body = new FormData();
+      body.set("file", file);
+      body.set("examSystemCode", examSystemCode);
+      body.set("dataVersion", dataVersion || `upload-${Date.now()}`);
+      body.set("commit", commit ? "true" : "false");
+      body.set("overwrite", overwrite ? "true" : "false");
+
+      const res = await fetch("/api/admin/cutoffs/upload", { method: "POST", body });
+      const data = await res.json();
+      if (!res.ok) {
+        setUploadError(data.error ?? "Upload failed.");
+        setReport(null);
+        return;
+      }
+      setReport(data);
+      if (data.committed) onCommitted();
+    } catch (e) {
+      setUploadError("Network error — check your connection and try again.");
+    } finally {
+      setBusy("idle");
+    }
+  }
+
+  const canCommit = report && report.errors.length === 0 && !report.committed;
+
+  return (
+    <section className="mt-6 rounded-lg border border-slate-200 bg-white p-4">
+      <h3 className="text-sm font-semibold text-slate-800">Upload cutoff data</h3>
+      <p className="mt-1 text-xs text-slate-500">
+        CSV only. Columns required: year, round, instituteName, instituteType, state, branchName,
+        branchShortCode, quota, seatPool, category, openingRank, closingRank (sourceUrl optional).
+      </p>
+
+      <div className="mt-3 flex flex-wrap items-end gap-3 text-xs">
+        <label className="flex flex-col gap-1">
+          <span className="text-slate-500">CSV file</span>
+          <input
+            type="file"
+            accept=".csv"
+            onChange={(e) => {
+              setFile(e.target.files?.[0] ?? null);
+              setReport(null);
+              setUploadError(null);
+            }}
+            className="text-xs"
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-slate-500">Exam system code</span>
+          <input
+            value={examSystemCode}
+            onChange={(e) => setExamSystemCode(e.target.value)}
+            className="rounded-md border border-slate-300 px-2 py-1"
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-slate-500">Data version label</span>
+          <input
+            value={dataVersion}
+            onChange={(e) => setDataVersion(e.target.value)}
+            placeholder="e.g. josaa-2026-round1"
+            className="rounded-md border border-slate-300 px-2 py-1"
+          />
+        </label>
+        <label className="flex items-center gap-1.5 pb-1.5">
+          <input type="checkbox" checked={overwrite} onChange={(e) => setOverwrite(e.target.checked)} />
+          <span className="text-slate-600">Overwrite existing records</span>
+        </label>
+        <button
+          onClick={() => runUpload(false)}
+          disabled={!file || busy !== "idle"}
+          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-700 disabled:opacity-40"
+        >
+          {busy === "checking" ? "Checking..." : "Check file"}
+        </button>
+        {canCommit && (
+          <button
+            onClick={() => runUpload(true)}
+            disabled={busy !== "idle"}
+            className="rounded-md border border-brand-600 bg-brand-600 px-3 py-1.5 font-medium text-white disabled:opacity-40"
+          >
+            {busy === "committing" ? "Importing..." : `Import ${report!.validRows} rows`}
+          </button>
+        )}
+      </div>
+
+      {uploadError && <p className="mt-3 text-xs text-red-600">{uploadError}</p>}
+
+      {report && (
+        <div className="mt-4 space-y-3 text-xs">
+          {report.committed ? (
+            <p className="rounded-md bg-emerald-50 px-3 py-2 text-emerald-800">
+              Imported. Inserted {report.inserted}, updated {report.updated}, skipped{" "}
+              {report.skippedAsDuplicateOfPublished} already-published rows.
+            </p>
+          ) : (
+            <p className="text-slate-600">
+              {report.totalRows} rows parsed, {report.validRows} valid, {report.errors.length} error(s),{" "}
+              {report.warnings.length} warning(s).
+            </p>
+          )}
+
+          {report.newInstitutes.length > 0 && (
+            <div>
+              <span className="font-medium text-slate-700">New institutes ({report.newInstitutes.length}):</span>{" "}
+              {report.newInstitutes.join(", ")}
+            </div>
+          )}
+          {report.newBranches.length > 0 && (
+            <div>
+              <span className="font-medium text-slate-700">New branches ({report.newBranches.length}):</span>{" "}
+              {report.newBranches.join(", ")}
+            </div>
+          )}
+
+          {report.errors.length > 0 && (
+            <div className="max-h-40 overflow-y-auto rounded-md border border-red-200 bg-red-50 p-2">
+              <p className="font-medium text-red-800">Errors (must fix before import):</p>
+              {report.errors.slice(0, 100).map((e, i) => (
+                <p key={i} className="text-red-700">
+                  Row {e.rowNumber} [{e.code}]: {e.message}
+                </p>
+              ))}
+            </div>
+          )}
+          {report.warnings.length > 0 && (
+            <div className="max-h-40 overflow-y-auto rounded-md border border-amber-200 bg-amber-50 p-2">
+              <p className="font-medium text-amber-800">Warnings (won't block import):</p>
+              {report.warnings.slice(0, 100).map((w, i) => (
+                <p key={i} className="text-amber-700">
+                  Row {w.rowNumber} [{w.code}]: {w.message}
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function AdminDataPage() {
   const [groups, setGroups] = useState<SummaryGroup[]>([]);
   const [rows, setRows] = useState<CutoffRow[]>([]);
@@ -39,6 +214,16 @@ export default function AdminDataPage() {
   const [loadingSummary, setLoadingSummary] = useState(true);
   const [loadingTable, setLoadingTable] = useState(true);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  function reloadAfterCommit() {
+    setLoadingSummary(true);
+    setLoadingTable(true);
+    fetch("/api/admin/cutoffs/summary")
+      .then((r) => r.json())
+      .then((data) => setGroups(data.groups ?? []))
+      .finally(() => setLoadingSummary(false));
+    setPage(1);
+  }
 
   useEffect(() => {
     fetch("/api/admin/cutoffs/summary")
@@ -85,6 +270,8 @@ export default function AdminDataPage() {
       <p className="mt-1 text-sm text-slate-500">
         Coverage summary by branch, and the full record browser below.
       </p>
+
+      <UploadSection onCommitted={reloadAfterCommit} />
 
       <section className="mt-6">
         <h3 className="text-sm font-semibold text-slate-800">

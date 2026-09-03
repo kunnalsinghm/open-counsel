@@ -6,3 +6,5 @@ dev.db-wal
 .env
 *.log
 tsconfig.tsbuildinfo
+commit_output.txt
+dryrun_output.txt
