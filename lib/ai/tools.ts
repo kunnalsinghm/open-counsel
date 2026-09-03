@@ -79,10 +79,8 @@ export async function queryCounselingRule(params: { examSystemCode: string; topi
   };
 }
 
-export function routeIntent(message: string): "CUTOFF" | "RULE" | "RECOMMENDATION" | "GENERAL" {
-  const m = message.toLowerCase();
-  if (/(freeze|float|slide|withdraw|refund)/.test(m)) return "RULE";
-  if (/(cutoff|closing rank|opening rank|can i get)/.test(m)) return "CUTOFF";
-  if (/(my list|recommend|safer|reorder)/.test(m)) return "RECOMMENDATION";
-  return "GENERAL";
-}
+// routeIntent lives in ./router (no db/client.ts import) so it can be
+// imported and tested without a DATABASE_URL present. Re-exported here so
+// existing `import { routeIntent } from "@/lib/ai/tools"` call sites are
+// unaffected.
+export { routeIntent } from "./router";

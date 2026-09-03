@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Run tests
+        run: npx vitest run
+
+      - name: Build
+        run: npm run build
+        env:
+          # Dummy values so the build step doesn't fail on missing required env vars.
+          # This CI job only verifies the code compiles and tests pass - it never
+          # talks to a real database or external service.
+          DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci"
+          NEXT_PUBLIC_SUPABASE_URL: "https://ci.supabase.co"
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: "ci-dummy-anon-key"
+          APP_MODE: "development"
+          PAYMENTS_ENABLED: "false"
