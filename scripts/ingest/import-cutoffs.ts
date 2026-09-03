@@ -1,4 +1,4 @@
-﻿import { readFileSync } from "fs";
+import { readFileSync } from "fs";
 import { runIngestion } from "../../lib/ingestion/import-core";
 import type { IngestionIssue } from "../../lib/ingestion/types";
 
@@ -25,15 +25,30 @@ function printReport(
   totalRows: number,
   validCount: number,
   errors: IngestionIssue[],
+  skipped: IngestionIssue[],
   warnings: IngestionIssue[],
+  droppedByCode: Record<string, number>,
   newInstitutes: string[],
   newBranches: string[]
 ) {
   console.log("\n=== Ingestion Report ===");
   console.log(`Total data rows: ${totalRows}`);
   console.log(`Valid rows: ${validCount}`);
-  console.log(`Errors: ${errors.length}`);
-  console.log(`Warnings: ${warnings.length}`);
+  console.log(`Errors (blocks commit): ${errors.length}`);
+  console.log(`Skipped (row dropped, commit still proceeds): ${skipped.length}`);
+  console.log(`Warnings (informational, row still imported): ${warnings.length}`);
+
+  const dropCodes = Object.keys(droppedByCode);
+  if (dropCodes.length > 0) {
+    console.log(`\n--- Dropped-row breakdown (should sum close to totalRows - validRows) ---`);
+    for (const code of dropCodes.sort((a, b) => droppedByCode[b] - droppedByCode[a])) {
+      console.log(`  ${code}: ${droppedByCode[code]}`);
+    }
+    console.log(
+      `  NOTE: a row with more than one issue is counted once per code above, so this can sum to`
+    );
+    console.log(`  slightly more than (totalRows - validRows) - it will never sum to less.`);
+  }
 
   if (newInstitutes.length > 0) {
     console.log(`\nNew institutes that will be created (${newInstitutes.length}):`);
@@ -90,10 +105,20 @@ async function main() {
     process.exit(1);
   }
 
-  printReport(result.totalRows, result.validRows, result.errors, result.warnings, result.newInstitutes, result.newBranches);
+  printReport(
+    result.totalRows,
+    result.validRows,
+    result.errors,
+    result.skipped,
+    result.warnings,
+    result.droppedByCode,
+    result.newInstitutes,
+    result.newBranches
+  );
 
   if (result.errors.length > 0) {
     console.log(`\nImport blocked: fix all ERROR rows above before importing.`);
+    console.log(`(SKIPPED rows do not block import - only ERROR rows do.)`);
     process.exit(1);
   }
 

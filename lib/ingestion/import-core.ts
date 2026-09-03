@@ -1,4 +1,4 @@
-﻿import { eq, and } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { db, schema } from "@/db/client";
 import { parseCsv, csvRowsToObjects } from "./csv";
 import { validateRow, findDuplicatesInFile, REQUIRED_COLUMNS } from "./validate";
@@ -16,7 +16,9 @@ export interface RunIngestionResult {
   totalRows: number;
   validRows: number;
   errors: IngestionIssue[];
+  skipped: IngestionIssue[];
   warnings: IngestionIssue[];
+  droppedByCode: Record<string, number>;
   newInstitutes: string[];
   newBranches: string[];
   // Only populated when shouldCommit is true
@@ -27,7 +29,7 @@ export interface RunIngestionResult {
 }
 
 /**
- * Shared core for CSV cutoff ingestion — validates, reports, and (if
+ * Shared core for CSV cutoff ingestion - validates, reports, and (if
  * shouldCommit) upserts into cutoff_records. Used by both the CLI script
  * (scripts/ingest/import-cutoffs.ts) and the admin upload API route
  * (app/api/admin/cutoffs/upload/route.ts) so there's one implementation of
@@ -60,6 +62,7 @@ export async function runIngestion(
 
   const { records } = objectResult;
   const errors: IngestionIssue[] = [];
+  const skipped: IngestionIssue[] = [];
   const warnings: IngestionIssue[] = [];
   const validRows: { row: CutoffCsvRow; rowNumber: number }[] = [];
 
@@ -67,15 +70,25 @@ export async function runIngestion(
     const rowNumber = idx + 2;
     const { row, issues } = validateRow(raw, rowNumber, examSystemCode, validCategories, validQuotas);
     for (const issue of issues) {
-      (issue.severity === "ERROR" ? errors : warnings).push(issue);
+      if (issue.severity === "ERROR") errors.push(issue);
+      else if (issue.severity === "SKIPPED") skipped.push(issue);
+      else warnings.push(issue);
     }
     if (row) validRows.push({ row, rowNumber });
   });
 
   const duplicateIssues = findDuplicatesInFile(validRows);
-  errors.push(...duplicateIssues);
+  skipped.push(...duplicateIssues);
   const duplicateRowNumbers = new Set(duplicateIssues.map((i) => i.rowNumber));
   const finalValidRows = validRows.filter((r) => !duplicateRowNumbers.has(r.rowNumber));
+
+  // Every row is now accounted for: totalRows === finalValidRows.length + errors.length +
+  // skipped.length (a row can only land in exactly one bucket). droppedByCode makes that
+  // auditable at a glance instead of requiring someone to re-derive it from raw counts.
+  const droppedByCode: Record<string, number> = {};
+  for (const issue of [...errors, ...skipped]) {
+    droppedByCode[issue.code] = (droppedByCode[issue.code] ?? 0) + 1;
+  }
 
   const existingInstitutes = await db
     .select()
@@ -102,12 +115,18 @@ export async function runIngestion(
     totalRows: records.length,
     validRows: finalValidRows.length,
     errors,
+    skipped,
     warnings,
+    droppedByCode,
     newInstitutes: Array.from(newInstitutes),
     newBranches: Array.from(newBranches),
   };
 
-  // Errors block committing regardless of what the caller asked for.
+  // Only real ERRORs (malformed data) block committing - SKIPPED rows (unrecognized but
+  // anticipated quota/category values, in-file duplicates) are excluded from the import but
+  // don't stop the rest of the file from landing. This is the fix for the earlier failure mode
+  // where a handful of unmodeled quota codes anywhere in an 11k-row file blocked the entire
+  // commit instead of just those rows.
   if (errors.length > 0 || !shouldCommit) {
     return { ...baseResult, inserted: 0, updated: 0, skippedAsDuplicateOfPublished: 0, committed: false };
   }

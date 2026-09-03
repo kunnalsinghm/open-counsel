@@ -55,6 +55,13 @@ async function main() {
     .where(eq(schema.examSystems.code, "JOSAA"))
     .limit(1);
 
+  // JK (Jammu & Kashmir) and LA (Ladakh) are real JoSAA home-state quotas - added so a real
+  // cutoff CSV containing these rows imports instead of getting silently dropped (previously:
+  // "INVALID_QUOTA" on every JK/LA row). NOTE: "Preparatory" (P-prefixed) ranks are a separate
+  // rank-track, not a quota or category, and still aren't modeled by this schema - those rows
+  // will still be SKIPPED on import (see lib/ingestion/validate.ts) until that's added.
+  const CURRENT_QUOTAS = ["HS", "OS", "AI", "GO", "JK", "LA"];
+
   if (!exam) {
     [exam] = await db
       .insert(schema.examSystems)
@@ -63,9 +70,23 @@ async function main() {
         name: "Joint Seat Allocation Authority",
         description: "Central counseling for IITs, NITs, IIITs and GFTIs.",
         categories: ["OPEN", "EWS", "OBC-NCL", "SC", "ST", "PwD"],
-        quotas: ["HS", "OS", "AI", "GO"],
+        quotas: CURRENT_QUOTAS,
       })
       .returning();
+  } else {
+    // exam already existed (e.g. from before this fix) - patch its quota list in place rather
+    // than leaving an already-seeded local/staging DB stuck on the old ["HS","OS","AI","GO"]
+    // set, which is exactly what silently broke JK/LA imports last time.
+    const existingQuotas = (exam.quotas as string[]) ?? [];
+    const missingQuotas = CURRENT_QUOTAS.filter((q) => !existingQuotas.includes(q));
+    if (missingQuotas.length > 0) {
+      [exam] = await db
+        .update(schema.examSystems)
+        .set({ quotas: CURRENT_QUOTAS })
+        .where(eq(schema.examSystems.id, exam.id))
+        .returning();
+      console.log(`Patched JOSAA quotas: added ${missingQuotas.join(", ")}.`);
+    }
   }
 
   const existingRules = await db
@@ -79,7 +100,7 @@ async function main() {
         examSystemId: exam.id,
         topic: "FREEZE",
         title: "What does Freeze mean?",
-        body: "Freezing your allotted seat means you accept it and exit the counseling process — you will not be considered in later rounds and must complete admission formalities at the allotted institute.",
+        body: "Freezing your allotted seat means you accept it and exit the counseling process - you will not be considered in later rounds and must complete admission formalities at the allotted institute.",
         officialUrl: "https://josaa.nic.in",
       },
       {
@@ -107,7 +128,7 @@ async function main() {
         examSystemId: exam.id,
         topic: "REFUND",
         title: "Refund policy",
-        body: "Refund amounts and deadlines are set by the counseling authority each year and are published on the official portal — always check the current year's notification.",
+        body: "Refund amounts and deadlines are set by the counseling authority each year and are published on the official portal - always check the current year's notification.",
         officialUrl: "https://josaa.nic.in",
       },
     ]);
@@ -119,7 +140,7 @@ async function main() {
     .where(eq(schema.institutes.examSystemId, exam.id));
 
   if (existingInstitutes.length > 0) {
-    console.log("Institutes already seeded — skipping cutoff generation.");
+    console.log("Institutes already seeded - skipping cutoff generation.");
     process.exit(0);
   }
 
@@ -193,7 +214,7 @@ async function main() {
   console.log(`Seeded ${INSTITUTES.length} institutes, ${BRANCHES.length} branches each.`);
   console.log(`Seeded ${cutoffCount} cutoff records.`);
   console.log(
-    "NOTE: cutoff figures are illustrative mock data for development/demo use only — NOT verified official JoSAA data. Replace via the admin data-ingestion pipeline before any real launch."
+    "NOTE: cutoff figures are illustrative mock data for development/demo use only - NOT verified official JoSAA data. Replace via the admin data-ingestion pipeline before any real launch."
   );
   process.exit(0);
 }

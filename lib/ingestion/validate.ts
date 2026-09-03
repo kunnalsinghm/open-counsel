@@ -31,6 +31,8 @@ export function validateRow(
   const issues: IngestionIssue[] = [];
   const err = (code: string, message: string) =>
     issues.push({ severity: "ERROR", rowNumber, code, message });
+  const skip = (code: string, message: string) =>
+    issues.push({ severity: "SKIPPED", rowNumber, code, message });
   const warn = (code: string, message: string) =>
     issues.push({ severity: "WARNING", rowNumber, code, message });
 
@@ -61,9 +63,9 @@ export function validateRow(
     err("MISSING_BRANCH", "Branch name and short code are both required.");
   }
   if (!validQuotas.includes(raw.quota)) {
-    err(
+    skip(
       "INVALID_QUOTA",
-      `Quota "${raw.quota}" is not recognized for ${examSystemCode}. Valid values: ${validQuotas.join(", ")}.`
+      `Quota "${raw.quota}" is not configured for ${examSystemCode} (valid values: ${validQuotas.join(", ")}) - row skipped, not imported. If this quota should be supported, add it to exam_systems.quotas.`
     );
   }
   if (!VALID_SEAT_POOLS.has(raw.seatPool)) {
@@ -73,9 +75,9 @@ export function validateRow(
     );
   }
   if (!validCategories.includes(raw.category)) {
-    err(
+    skip(
       "INVALID_CATEGORY",
-      `Category "${raw.category}" is not recognized for ${examSystemCode}. Valid values: ${validCategories.join(", ")}.`
+      `Category "${raw.category}" is not configured for ${examSystemCode} (valid values: ${validCategories.join(", ")}) - row skipped, not imported. If this category should be supported, add it to exam_systems.categories.`
     );
   }
   if (!Number.isInteger(openingRank) || openingRank <= 0) {
@@ -91,7 +93,7 @@ export function validateRow(
   ) {
     err(
       "OPENING_EXCEEDS_CLOSING",
-      `Opening rank (${openingRank}) is greater than closing rank (${closingRank}) — impossible.`
+      `Opening rank (${openingRank}) is greater than closing rank (${closingRank}) - impossible.`
     );
   }
   if (
@@ -106,7 +108,7 @@ export function validateRow(
     );
   }
 
-  if (issues.some((i) => i.severity === "ERROR")) {
+  if (issues.some((i) => i.severity === "ERROR" || i.severity === "SKIPPED")) {
     return { row: null, issues };
   }
 
@@ -149,10 +151,10 @@ export function findDuplicatesInFile(rows: { row: CutoffCsvRow; rowNumber: numbe
     const firstSeenAt = seen.get(key);
     if (firstSeenAt !== undefined) {
       issues.push({
-        severity: "ERROR",
+        severity: "SKIPPED",
         rowNumber,
         code: "DUPLICATE_IN_FILE",
-        message: `Duplicate of row ${firstSeenAt} (same institute, branch, year, round, quota, seat pool, and category).`,
+        message: `Duplicate of row ${firstSeenAt} (same institute, branch, year, round, quota, seat pool, and category) - row skipped, not imported.`,
       });
     } else {
       seen.set(key, rowNumber);
