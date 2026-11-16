@@ -1,132 +1,127 @@
-﻿# OpenCounsel
+# OpenCounsel
 
-Free, independent choice-list simulator for Indian entrance-exam admission counseling
-(JoSAA-style architecture, extensible to CSAB / NEET-UG / State CETs via the `exam_system` abstraction).
+A free, independent web app that helps Indian engineering-exam candidates build and check
+their counseling choice list (JoSAA first). Not affiliated with JoSAA, CSAB, MCC or NTA.
+Everything shown is a **historical-data estimate, never a guarantee**.
 
-> **Scope note:** this is a working full-stack app with a deterministic recommendation
-> engine, real ingested historical cutoff data, a choice-list linter, drag-and-drop
-> builder, CSV/PDF export, multi-round simulator, real authentication, an admin
-> dashboard, and a grounded AI counselor scaffold. Payment (Razorpay/Cashfree) and the
-> AI provider are built as swappable abstractions with working *mock* implementations -
-> wire in real credentials before a commercial launch.
+The app is 100% free: there are no payments, donations or paywalls.
 
-## Quick start
+## What it does
 
+1. Student enters rank, category, home state, seat pool and preferred branches / institute types.
+2. A deterministic engine sorts options into Dream / Target / Safe using historical cutoffs.
+3. Drag-and-drop reordering with a linter (duplicates, bad ordering, invalid quota, too few safe choices).
+4. CSV / PDF export, saved lists, college comparison, and a multi-round Freeze / Float / Slide simulator.
+5. A grounded AI counselor: cutoffs come from SQL, rules come from stored counseling rules.
+   The model only explains; eligibility and ordering are always deterministic code.
+
+## Tech stack
+
+Next.js 14 (App Router) Â· TypeScript Â· Tailwind Â· @dnd-kit Â· Drizzle ORM + postgres-js Â·
+Supabase (Postgres + Auth) Â· Google Gemini (AI counselor) Â· Vitest. Deployed on Vercel.
+
+**Postgres is required.** There is no SQLite mode.
+
+## Run it locally
+
+```bash
 npm install
-cp .env.example .env
-npm run db:push
-npm run db:seed
+cp .env.example .env        # fill in DATABASE_URL and the Supabase keys
+npm run db:push             # create the tables
+npm run db:seed             # OPTIONAL demo data (see warning below)
 npm run dev
+```
 
-No Docker, no external services required for local development. npm run build compiles
-cleanly, npm run start serves all pages with HTTP 200, and the API routes return real
-data from the database.
+> **Warning: `db:seed` generates made-up cutoffs** (`data_version = seed-v1`). They exist only
+> so the app has something to show on an empty database. Never leave them in production.
+> `npm run db:check` tells you whether any are present; `npm run db:check -- --purge-mock`
+> removes them (it refuses to run if there is no real data to fall back on).
 
-ORM/driver note: this uses Drizzle ORM. Local dev can run on SQLite via sql.js (a
-pure-WASM build of SQLite, zero native compilation, runs identically on every OS and
-Node version). Production runs on Postgres/Supabase - see drizzle.config.ts and
-db/client.ts for the dialect switch, and use drizzle-kit generate + drizzle-kit migrate
-for schema changes against Postgres.
+## Real cutoff data
 
-## What's real vs. mocked in this build
+Cutoffs come from CSV files (see `data/sample-cutoffs-template.csv` for the columns).
 
-| Feature | Status |
+- **Website:** log in as an admin, open `/admin/data`, upload a CSV (max 4 MB), review the
+  validation report, then import. Use the dry run first.
+- **Command line (any size):**
+  ```bash
+  npm run ingest -- data/your-file.csv --exam JOSAA --version josaa-2025-r6          # dry run
+  npm run ingest -- data/your-file.csv --exam JOSAA --version josaa-2025-r6 --commit # import
+  ```
+  Add `--overwrite` to replace rows that already exist. Real rows always replace demo rows.
+
+How rows are treated:
+
+| Result | Meaning |
 | --- | --- |
-| Deterministic recommendation engine (Eligibility -> Cutoff -> Preference -> Risk -> Optimizer -> Explanation) | Real, fully implemented in lib/recommendation-engine.ts, covered by tests |
-| Dream/Target/Safe classification with configurable thresholds | Real, lib/config.ts |
-| Choice-list linter (duplicates, dominated ordering, quota validity, list-length/safety warnings) | Real, lib/linter.ts, covered by tests |
-| Multi-round simulator (Freeze/Float/Slide) | Real, app/simulator + api/simulate-rounds, covered by tests |
-| Real data ingestion pipeline | Real, lib/ingestion + scripts/ingest, with provenance/validation reporting and an institute-merge/dedup tool |
-| Historical cutoff data | Real, sourced via the ingestion pipeline above (JoSAA cutoffs), replacing the earlier seeded mock dataset |
-| Authentication (Supabase Auth) | Real, app/login, app/auth/callback |
-| Admin dashboard (data upload/validation, usage metrics, pricing management) | Real, app/admin/data, app/admin/usage, app/admin/pricing + matching api/admin/* routes |
-| Save/load choice lists | Real, app/my-lists + api/my-lists + api/save-list |
-| Drag-and-drop choice builder, CSV/PDF export | Real, works fully client-side |
-| Grounded AI counselor (intent router -> SQL tool / rules RAG -> LLM) | Real routing + grounding logic; LLM call itself is mocked until you set AI_API_KEY and implement the fetch in lib/ai/provider.ts |
-| Payments (Razorpay/Cashfree) | Abstraction is real (lib/payments/provider.ts), implementation is a dev-mode mock - wire up real provider before enabling PAYMENTS_ENABLED=true |
-| Donation modal | Real UI, uses the same mock payment flow |
-| Legal pages (terms/privacy/disclaimer/contact) | Real, complete text - have it reviewed by a lawyer before commercial launch |
-| Unit tests (recommendation engine, linter, simulation) | Real, lib/*.test.ts |
-| College comparison, rules management UI | Not built yet - see below |
+| ERROR | Malformed data (bad year/rank, missing field, opening > closing). Blocks the whole commit. |
+| SKIPPED | Valid row we do not model (unknown quota/category, duplicate in file). Dropped and reported; the rest still imports. |
+| WARNING | Imported, but worth a look. |
 
-## Architecture
+The import runs in a single transaction: it either fully succeeds or changes nothing.
 
-app/
-  page.tsx                 landing page
-  profile/                 student intake wizard -> POST /api/recommendations
-  results/                 Dream/Target/Safe results, drag-and-drop, linter, export
-  simulator/                multi-round Freeze/Float/Slide simulator
-  my-lists/                 saved choice lists
-  login/, auth/callback/    Supabase authentication
-  admin/
-    data/                   dataset upload/validation
-    usage/                  usage metrics
-    pricing/                pricing management
-  api/
-    recommendations/       runs the deterministic engine against real cutoffs
-    lint/                  re-lints a reordered list
-    cutoffs/                grounded read-only cutoff lookup (used by AI tool + admin)
-    chat/                   AI counselor: intent routing -> grounded tool -> LLM
-    rules/                  counseling rules lookup
-    simulate-rounds/        multi-round simulation engine
-    my-lists/, save-list/   saved choice list persistence
-    health/                 GET /health
-    admin/
-      cutoffs/, cutoffs/summary/, cutoffs/upload/   dataset management
-      usage/                                        usage metrics
-  terms/ privacy/ disclaimer/ contact/
+Known gaps: "Preparatory" ranks have no field in the schema, so those rows are skipped.
+Institute matching is by exact name, so spelling variants create duplicate institutes;
+`scripts/merge_duplicate_institutes.ts` merges them afterwards.
 
-lib/
-  recommendation-engine.ts  EligibilityEngine, CutoffEngine, RiskEngine, PreferenceEngine,
-                             ChoiceOptimizer, ExplanationEngine (as separate functions)
-  linter.ts                 choice-list mistake checker
-  config.ts                 documented, tunable thresholds
-  types.ts                  shared domain types
-  ai/tools.ts                grounded SQL + rules lookup, never hallucinated
-  ai/provider.ts             pluggable LLM call, mocked without AI_API_KEY
-  payments/provider.ts       PaymentProvider interface + MockPaymentProvider
-  ingestion/                 real data ingestion pipeline with validation/provenance
-  supabase/                  auth client helpers
-  export.ts                  client-side CSV/PDF generation
+## Admin access
 
-scripts/
-  ingest/                    CSV/PDF/HTML ingestion scripts for official cutoff sources
-  seed/                      dev database seeding
-  merge_duplicate_institutes.ts   institute de-duplication tool
+Set `ADMIN_EMAIL` to your email. The first time that account logs in it is marked as an admin
+and `/admin` opens (Data, Usage, Rules, Config).
 
-db/
-  schema (Drizzle)           normalized schema (users, profiles, exam_systems,
-                              institutes, branches, cutoffs, rounds, rules, choice lists,
-                              reports, orders, payments, donations, chat, audit logs)
+## AI counselor
 
-## Classification logic
+- Requires login; limited to 5 questions per student per rolling 24 hours (`lib/config.ts`).
+- With `AI_API_KEY` set it calls the Gemini API; without it, it returns a clearly labelled mock reply.
+- For cutoff questions it extracts the institute, branch, category, quota, year and round from
+  the question and fetches only those rows. If the question names no institute or branch, the
+  model is told to ask which one instead of guessing.
+- Every question and answer is stored in `chat_messages` (the answer is saved before the
+  response ends, so it works on serverless hosting).
 
-Dream/Target/Safe is computed from rankGapPercent = (closingRank - studentRank) / closingRank * 100 against the most recent year's closing rank for each
-institute+branch+quota+category+seatPool combination, then adjusted for confidence
-based on how many historical years are available and the observed trend direction.
-Thresholds live in lib/config.ts - nothing is hard-coded inline, per the spec's
-explainability requirement.
+## Project layout
 
-## What's not built yet (honest next steps)
+```
+app/            pages and API routes (profile, results, simulator, compare, my-lists, admin, api/*)
+components/     ChoiceTable, ChatWidget, AuthStatus
+lib/            recommendation-engine, linter, simulation, config, ai/*, ingestion/*, export
+db/             Drizzle schema, client, seed
+scripts/        ingest/import-cutoffs.ts, check-data.ts, merge_duplicate_institutes.ts
+data/           sample CSV template and a real NIT Calicut 2024 round-1 file
+```
 
-1. Real LLM call in lib/ai/provider.ts - the grounding/routing logic around it is
-   already real; only the actual model call is mocked.
-2. Real payment provider implementation (Razorpay/Cashfree) against the existing
-   PaymentProvider interface, plus webhook signature verification route.
-3. College comparison page.
-4. Rules management UI in the admin dashboard - the CounselingRule table and
-   api/rules route exist; a UI to edit/publish rules is still missing.
-5. Deployment configs (Vercel + Render/Railway + hosted Postgres) and CI.
-6. Broader test coverage - engine/linter/simulation are tested; API routes and admin
-   flows are not yet covered.
+## Commands
 
-## Verified working
+| Command | What it does |
+| --- | --- |
+| `npm run dev` / `build` / `start` | Next.js |
+| `npm test` | Vitest unit tests |
+| `npx tsc --noEmit` | Type check |
+| `npm run db:push` | Sync the schema to the database |
+| `npm run db:seed` | Demo data (mock) |
+| `npm run db:check` | Report real vs mock cutoffs (`-- --purge-mock` to delete mock) |
+| `npm run ingest -- <csv> --exam JOSAA --version <label> [--commit] [--overwrite]` | Import cutoffs |
 
-- npm install - installs cleanly, no native compilation step
-- npm run db:push - creates all tables in dev.db
-- npx tsc --noEmit - zero type errors
-- npm run build - production build compiles and prerenders all pages/routes
-- npm test - unit tests pass for the recommendation engine, linter, and simulation
-- npm run start + live requests: /api/health, /api/recommendations,
-  /api/cutoffs, /api/chat, /api/simulate-rounds, /api/my-lists all return real
-  data from the database
+CI (`.github/workflows/ci.yml`) runs type check, tests and build on every push.
+
+## Status
+
+| Area | Status |
+| --- | --- |
+| Recommendation engine, linter, simulator | Built, unit-tested |
+| Auth, saved lists, admin (data, usage, rules, config), compare page | Built |
+| CSV ingestion (web + CLI) | Built, batched, transactional |
+| AI counselor | Built (Gemini); mock mode without a key |
+| Payments / donations | **Removed on purpose**: the app is free |
+| JoSAA round-PDF parser | Not built (CSV only) |
+| Preparatory-rank modelling | Not built |
+| API route / admin integration tests | Not built |
+
+Notes: the payment tables (`orders`, `payments`, `donations`, `reports`) are still defined in
+`db/schema.ts` but unused, so `db:push` never proposes a destructive change. `Dockerfile` and
+`fly.toml` are leftovers from an earlier plan; production runs on Vercel.
+
+## Disclaimer
+
+OpenCounsel is an independent educational tool. Always verify against the official
+counseling notification before making any irreversible decision.
