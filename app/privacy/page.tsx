@@ -1,6 +1,7 @@
 export default function PrivacyPage() {
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10 prose prose-slate">
+    <div className="mx-auto max-w-3xl px-4 py-10">
+      <article className="card prose prose-slate max-w-none p-6 prose-headings:tracking-tight prose-a:text-brand-600 sm:p-10">
       <h1>Privacy Policy</h1>
       <p>Last updated: {new Date().toLocaleDateString("en-IN")}</p>
       <h2>1. What We Collect</h2>
@@ -51,6 +52,7 @@ export default function PrivacyPage() {
       </p>
       <h2>8. Changes</h2>
       <p>We may update this policy periodically; material changes will be highlighted on this page.</p>
+      </article>
     </div>
   );
 }

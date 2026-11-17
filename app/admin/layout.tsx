@@ -11,10 +11,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="border-b border-slate-200 bg-white px-6 py-3">
+      <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/85 px-6 py-3 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
-          <h1 className="text-sm font-semibold text-slate-800">OpenCounsel Admin</h1>
-          <nav className="flex gap-4 text-sm">
+          <h1 className="text-sm font-bold tracking-tight text-brand-700">OpenCounsel Admin</h1>
+          <nav className="flex gap-4 text-sm font-medium">
             <Link href="/admin" className="text-slate-600 hover:text-brand-600">Overview</Link>
             <Link href="/admin/data" className="text-slate-600 hover:text-brand-600">Data</Link>
             <Link href="/admin/usage" className="text-slate-600 hover:text-brand-600">Usage</Link>

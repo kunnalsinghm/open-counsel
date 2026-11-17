@@ -39,17 +39,17 @@ function Row({ item, onRemove }: { item: ChoiceListItem; onRemove: () => void })
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3"
+      className={`card flex items-center gap-3 p-3 transition-shadow ${isDragging ? "shadow-lg ring-2 ring-brand-300" : "hover:border-brand-200"}`}
     >
       <button
         {...attributes}
         {...listeners}
-        className="cursor-grab touch-none text-slate-400 hover:text-slate-600"
+        className="cursor-grab touch-none rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 active:cursor-grabbing"
         aria-label="Drag to reorder"
       >
         <GripVertical className="h-5 w-5" />
       </button>
-      <div className="w-8 shrink-0 text-center text-sm font-bold text-slate-500">
+      <div className="w-9 shrink-0 text-center text-sm font-bold text-brand-700">
         #{item.preferenceNumber}
       </div>
       <div className="flex-1">
@@ -62,7 +62,7 @@ function Row({ item, onRemove }: { item: ChoiceListItem; onRemove: () => void })
         </p>
       </div>
       <span
-        className={`shrink-0 rounded-full border px-2 py-1 text-xs font-semibold ${BAND_STYLES[item.riskBand]}`}
+        className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-semibold ${BAND_STYLES[item.riskBand]}`}
       >
         {item.riskBand}
       </span>
@@ -71,7 +71,7 @@ function Row({ item, onRemove }: { item: ChoiceListItem; onRemove: () => void })
       </span>
       <button
         onClick={onRemove}
-        className="shrink-0 text-slate-400 hover:text-red-600"
+        className="shrink-0 rounded-md p-1 text-slate-400 hover:bg-red-50 hover:text-red-600"
         aria-label="Remove choice"
       >
         <Trash2 className="h-4 w-4" />

@@ -24,21 +24,21 @@ export default function AdminConfigPage() {
         yet supported - change the source file and redeploy to update these values.
       </p>
 
-      <div className="mt-6 rounded-xl border border-slate-200 bg-white p-5">
+      <div className="mt-6 card p-5">
         <h3 className="text-sm font-semibold text-slate-800">App</h3>
         <div className="mt-2">
           <ConfigRow label="App Mode" value={APP_MODE} />
         </div>
       </div>
 
-      <div className="mt-4 rounded-xl border border-slate-200 bg-white p-5">
+      <div className="mt-4 card p-5">
         <h3 className="text-sm font-semibold text-slate-800">AI Chat Limits</h3>
         <div className="mt-2">
           <ConfigRow label="Daily Questions per Student" value={AI_DAILY_QUESTION_LIMIT} />
         </div>
       </div>
 
-      <div className="mt-4 rounded-xl border border-slate-200 bg-white p-5">
+      <div className="mt-4 card p-5">
         <h3 className="text-sm font-semibold text-slate-800">Choice List Recommendations</h3>
         <div className="mt-2">
           <ConfigRow label="Min Recommended Total Choices" value={MIN_RECOMMENDED_CHOICES} />
@@ -46,7 +46,7 @@ export default function AdminConfigPage() {
         </div>
       </div>
 
-      <div className="mt-4 rounded-xl border border-slate-200 bg-white p-5">
+      <div className="mt-4 card p-5">
         <h3 className="text-sm font-semibold text-slate-800">Risk Band Thresholds (rank gap %)</h3>
         <div className="mt-2">
           <ConfigRow

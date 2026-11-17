@@ -109,7 +109,7 @@ export default function ComparePage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
-      <h1 className="text-2xl font-bold text-slate-900">Compare Colleges</h1>
+      <h1 className="page-title">Compare Colleges</h1>
       <p className="mt-2 text-sm text-slate-500">
         Compare up to {MAX_COMPARE} institutes side by side for a given branch, quota, and
         category. Data shown is the most recent year/round available for each institute under
@@ -118,20 +118,20 @@ export default function ComparePage() {
 
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
         <div>
-          <label className="text-xs font-medium text-slate-600">Branch code</label>
+          <label className="text-xs font-semibold text-slate-600">Branch code</label>
           <input
             value={branch}
             onChange={(e) => setBranch(e.target.value.toUpperCase())}
             placeholder="e.g. CSE"
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="field"
           />
         </div>
         <div>
-          <label className="text-xs font-medium text-slate-600">Quota</label>
+          <label className="text-xs font-semibold text-slate-600">Quota</label>
           <select
             value={quota}
             onChange={(e) => setQuota(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="field"
           >
             {QUOTAS.map((q) => (
               <option key={q} value={q}>
@@ -141,11 +141,11 @@ export default function ComparePage() {
           </select>
         </div>
         <div>
-          <label className="text-xs font-medium text-slate-600">Category</label>
+          <label className="text-xs font-semibold text-slate-600">Category</label>
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="field"
           >
             {CATEGORIES.map((c) => (
               <option key={c} value={c}>
@@ -157,7 +157,7 @@ export default function ComparePage() {
       </div>
 
       <div className="relative mt-6">
-        <div className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2">
+        <div className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2.5 shadow-sm focus-within:border-brand-500 focus-within:ring-4 focus-within:ring-brand-100">
           <Search className="h-4 w-4 text-slate-400" />
           <input
             value={query}
@@ -168,16 +168,16 @@ export default function ComparePage() {
                 : "Search for an institute to add (e.g. NIT Calicut)"
             }
             disabled={selected.length >= MAX_COMPARE}
-            className="w-full text-sm outline-none disabled:bg-transparent disabled:text-slate-400"
+            className="w-full bg-transparent text-sm outline-none disabled:text-slate-400"
           />
         </div>
         {suggestions.length > 0 && (
-          <div className="absolute z-10 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg">
+          <div className="card absolute z-10 mt-1 w-full overflow-hidden shadow-lg">
             {suggestions.map((inst) => (
               <button
                 key={inst.id}
                 onClick={() => addInstitute(inst)}
-                className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-slate-50"
+                className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-brand-50"
               >
                 <span>{inst.name}</span>
                 <span className="text-xs text-slate-400">
@@ -190,11 +190,11 @@ export default function ComparePage() {
       </div>
 
       {selected.length === 0 ? (
-        <p className="mt-8 text-center text-sm text-slate-400">
+        <p className="mt-8 rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500">
           Add institutes above to start comparing.
         </p>
       ) : (
-        <div className="mt-8 overflow-x-auto">
+        <div className="card mt-8 overflow-x-auto p-2">
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr>
@@ -298,7 +298,7 @@ export default function ComparePage() {
         </div>
       )}
 
-      <p className="mt-8 flex items-start gap-2 rounded-md bg-slate-100 p-3 text-xs text-slate-600">
+      <p className="notice mt-8 flex items-start gap-2">
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
         Cutoff ranks vary by year, round, quota, category, and seat pool. Always verify against
         the latest official notification before making a decision.

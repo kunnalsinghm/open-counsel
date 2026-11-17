@@ -1,6 +1,7 @@
 export default function TermsPage() {
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10 prose prose-slate">
+    <div className="mx-auto max-w-3xl px-4 py-10">
+      <article className="card prose prose-slate max-w-none p-6 prose-headings:tracking-tight prose-a:text-brand-600 sm:p-10">
       <h1>Terms of Service</h1>
       <p>Last updated: {new Date().toLocaleDateString("en-IN")}</p>
       <h2>1. About OpenCounsel</h2>
@@ -52,6 +53,7 @@ export default function TermsPage() {
       </p>
       <h2>8. Contact</h2>
       <p>Questions about these terms can be sent via our Contact page.</p>
+      </article>
     </div>
   );
 }

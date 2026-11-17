@@ -38,7 +38,7 @@ async function getStats() {
 function StatCard({ label, value, tone }: { label: string; value: number | string; tone?: string }) {
   return (
     <div className={`rounded-xl border p-4 ${tone ?? "border-slate-200 bg-white"}`}>
-      <p className="text-2xl font-bold text-slate-900">{value}</p>
+      <p className="page-title">{value}</p>
       <p className="text-xs text-slate-500">{label}</p>
     </div>
   );

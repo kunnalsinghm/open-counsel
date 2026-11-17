@@ -89,7 +89,7 @@ function UploadSection({ onCommitted }: { onCommitted: () => void }) {
   const canCommit = report && report.errors.length === 0 && !report.committed;
 
   return (
-    <section className="mt-6 rounded-lg border border-slate-200 bg-white p-4">
+    <section className="mt-6 card p-4">
       <h3 className="text-sm font-semibold text-slate-800">Upload cutoff data</h3>
       <p className="mt-1 text-xs text-slate-500">
         CSV only. Columns required: year, round, instituteName, instituteType, state, branchName,
@@ -343,7 +343,7 @@ export default function AdminDataPage() {
           <p className="mt-3 text-sm text-slate-400">Loading records...</p>
         ) : (
           <>
-            <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200 bg-white">
+            <div className="card mt-3 overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 text-slate-500">
                   <tr>

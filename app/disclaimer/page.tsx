@@ -1,6 +1,7 @@
 export default function DisclaimerPage() {
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10 prose prose-slate">
+    <div className="mx-auto max-w-3xl px-4 py-10">
+      <article className="card prose prose-slate max-w-none p-6 prose-headings:tracking-tight prose-a:text-brand-600 sm:p-10">
       <h1>Disclaimer</h1>
       <p>Last updated: {new Date().toLocaleDateString("en-IN")}</p>
       <p>
@@ -41,6 +42,7 @@ export default function DisclaimerPage() {
         mock cutoff data for demonstration purposes. Such data is clearly tagged in our
         database as seed/mock data and must never be treated as verified official data.
       </p>
+      </article>
     </div>
   );
 }

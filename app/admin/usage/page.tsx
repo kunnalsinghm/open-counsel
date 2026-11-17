@@ -24,7 +24,7 @@ function MiniBarChart({ data, label }: { data: DayCount[]; label: string }) {
   }
   const max = Math.max(...data.map((d) => d.count), 1);
   return (
-    <div className="mt-3 flex items-end gap-1 overflow-x-auto rounded-lg border border-slate-200 bg-white p-4">
+    <div className="mt-3 flex items-end gap-1 overflow-x-auto card p-4">
       {data.map((d) => (
         <div key={d.day} className="flex flex-col items-center gap-1" title={`${d.day}: ${d.count}`}>
           <div
@@ -40,8 +40,8 @@ function MiniBarChart({ data, label }: { data: DayCount[]; label: string }) {
 
 function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
-      <p className="text-2xl font-bold text-slate-900">{value}</p>
+    <div className="card p-4">
+      <p className="page-title">{value}</p>
       <p className="text-xs text-slate-500">{label}</p>
     </div>
   );
