@@ -5,7 +5,7 @@ import ChatWidget from "@/components/ChatWidget";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "OpenCounsel â€” Free Admission Choice-Filling Simulator",
+  title: "OpenCounsel — Free Admission Choice-Filling Simulator",
   description:
     "Build a smarter JoSAA/CSAB/NEET/State CET choice list based on historical cutoff data. 100% free, independent educational tool.",
 };

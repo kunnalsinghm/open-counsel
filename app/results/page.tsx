@@ -3,10 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import ChoiceTable from "@/components/ChoiceTable";
-import DonationModal from "@/components/DonationModal";
 import { exportCsv, exportPdf } from "@/lib/export";
 import { lintChoiceList } from "@/lib/linter";
-import { PAYMENTS_ENABLED, PRICE_PAISE } from "@/lib/config";
 import { createClient } from "@/lib/supabase/client";
 import type { ChoiceListItem, LintIssue, StudentProfileInput } from "@/lib/types";
 import { AlertTriangle, Download, FileText, Save } from "lucide-react";
@@ -17,8 +15,6 @@ export default function ResultsPage() {
   const [profile, setProfile] = useState<StudentProfileInput | null>(null);
   const [items, setItems] = useState<ChoiceListItem[]>([]);
   const [issues, setIssues] = useState<LintIssue[]>([]);
-  const [showDonation, setShowDonation] = useState(false);
-  const [unlocked, setUnlocked] = useState(!PAYMENTS_ENABLED);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   useEffect(() => {
@@ -73,7 +69,7 @@ export default function ResultsPage() {
   const safe = items.filter((i) => i.riskBand === "SAFE");
   const jeeMainRank = profile.categoryRank ?? profile.crlRank;
   const jeeAdvRank = profile.jeeAdvancedCategoryRank ?? profile.jeeAdvancedRank;
-  const visibleItems = unlocked ? items : items.slice(0, 5);
+  const visibleItems = items;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
@@ -150,39 +146,20 @@ export default function ResultsPage() {
             </button>
             <button
               onClick={() => exportCsv(items)}
-              disabled={!unlocked}
-              className="flex items-center gap-1 rounded-md border border-slate-300 px-3 py-1.5 text-xs text-slate-700 disabled:opacity-40"
+              className="flex items-center gap-1 rounded-md border border-slate-300 px-3 py-1.5 text-xs text-slate-700"
             >
               <FileText className="h-3.5 w-3.5" /> CSV
             </button>
             <button
               onClick={() => exportPdf(items, profile)}
-              disabled={!unlocked}
-              className="flex items-center gap-1 rounded-md border border-slate-300 px-3 py-1.5 text-xs text-slate-700 disabled:opacity-40"
+              className="flex items-center gap-1 rounded-md border border-slate-300 px-3 py-1.5 text-xs text-slate-700"
             >
               <Download className="h-3.5 w-3.5" /> PDF
             </button>
           </div>
         </div>
 
-        {!unlocked && (
-          <div className="mb-4 rounded-lg border border-brand-200 bg-brand-50 p-4 text-center">
-            <p className="text-sm font-semibold text-brand-800">
-              Showing top 5 of {items.length} recommendations.
-            </p>
-            <p className="mt-1 text-xs text-brand-700">
-              Unlock Complete Choice List - Rs.{PRICE_PAISE / 100}
-            </p>
-            <button
-              onClick={() => setUnlocked(true)}
-              className="mt-3 rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white"
-            >
-              Unlock full report (dev mode)
-            </button>
-          </div>
-        )}
-
-        <ChoiceTable items={visibleItems} setItems={unlocked ? setItems : () => {}} />
+        <ChoiceTable items={visibleItems} setItems={setItems} />
       </section>
 
       <div className="mt-6 text-center">
@@ -194,16 +171,6 @@ export default function ResultsPage() {
         </Link>
       </div>
 
-      <div className="mt-8 text-center">
-        <button
-          onClick={() => setShowDonation(true)}
-          className="text-sm text-brand-600 underline"
-        >
-          Support OpenCounsel - buy us a coffee
-        </button>
-      </div>
-
-      {showDonation && <DonationModal onClose={() => setShowDonation(false)} />}
     </div>
   );
 }

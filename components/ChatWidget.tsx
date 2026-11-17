@@ -18,6 +18,7 @@ export default function ChatWidget() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
 
   async function send(text: string) {
     if (!text.trim()) return;
@@ -33,13 +34,30 @@ export default function ChatWidget() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({
+          message: text,
+          sessionId,
+          // Last few finished turns so follow-up questions make sense.
+          history: messages
+            .filter((m) => m.content.trim())
+            .slice(-6)
+            .map((m) => ({ role: m.role, content: m.content })),
+        }),
       });
 
       if (!res.ok || !res.body) {
-        setMessages([...next, { role: "assistant", content: "Sorry, I couldn't answer that." }]);
+        // Show the server's own reason (e.g. "Please log in", daily limit reached).
+        let reason = "Sorry, I couldn't answer that.";
+        try {
+          const err = await res.json();
+          if (typeof err?.error === "string") reason = err.error;
+        } catch {}
+        setMessages([...next, { role: "assistant", content: reason }]);
         return;
       }
+
+      const newSession = res.headers.get("x-chat-session");
+      if (newSession) setSessionId(newSession);
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();

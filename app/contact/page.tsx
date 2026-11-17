@@ -9,7 +9,7 @@ export default function ContactPage() {
     <div className="mx-auto max-w-xl px-4 py-10">
       <h1 className="text-2xl font-bold text-slate-900">Contact & Support</h1>
       <p className="mt-2 text-sm text-slate-600">
-        Report a wrong cutoff, an eligibility issue, a payment problem, or an AI answer
+        Report a wrong cutoff, an eligibility issue, or an AI answer
         that seems incorrect. We read every message.
       </p>
       {sent ? (
@@ -33,7 +33,6 @@ export default function ContactPage() {
             <select className="mt-1 w-full rounded-md border border-slate-300 p-2">
               <option>Wrong cutoff data</option>
               <option>Eligibility / quota issue</option>
-              <option>Payment problem</option>
               <option>AI answer problem</option>
               <option>Other</option>
             </select>

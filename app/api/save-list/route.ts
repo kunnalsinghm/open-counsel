@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
 import { db, schema } from "@/db/client";
 import { createClient } from "@/lib/supabase/server";
+import { ensureUser } from "@/lib/ensure-user";
 import type { ChoiceListItem, StudentProfileInput } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
@@ -24,18 +24,7 @@ export async function POST(req: NextRequest) {
   const profile = body.profile as StudentProfileInput;
   const items = body.items as ChoiceListItem[];
 
-  const [existingUser] = await db
-    .select()
-    .from(schema.users)
-    .where(eq(schema.users.id, user.id))
-    .limit(1);
-
-  if (!existingUser) {
-    await db.insert(schema.users).values({
-      id: user.id,
-      email: user.email ?? null,
-    });
-  }
+  await ensureUser(user);
 
   const [savedProfile] = await db
     .insert(schema.studentProfiles)

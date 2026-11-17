@@ -2,10 +2,10 @@ import Link from "next/link";
 import { CheckCircle2 } from "lucide-react";
 
 const TRUST_POINTS = [
-  "Historical cutoff analysis (JoSAA Round 1–6, 2023–2024)",
+  "Historical cutoff analysis (JoSAA Round 1– 6, 2023–2024)",
   "Deterministic Dream / Target / Safe classification",
   "Choice-list mistake checker (linter)",
-  "Grounded AI counseling assistant — never guesses cutoffs",
+  "Grounded AI counseling assistant â€” never guesses cutoffs",
   "One-click CSV / PDF export",
 ];
 
@@ -29,12 +29,6 @@ export default function LandingPage() {
             className="rounded-lg bg-brand-600 px-6 py-3 text-base font-semibold text-white shadow hover:bg-brand-700"
           >
             Build My Choice List
-          </Link>
-          <Link
-            href="/profile?demo=1"
-            className="rounded-lg border border-slate-300 bg-white px-6 py-3 text-base font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            Try Free Simulator
           </Link>
         </div>
       </div>

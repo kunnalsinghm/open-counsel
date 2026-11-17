@@ -8,19 +8,19 @@ export default function PrivacyPage() {
         <li>Account information you provide: name, email, phone (optional), state, preferred language.</li>
         <li>Profile information you enter: rank, category, domicile, gender-eligibility pool, branch/institute preferences.</li>
         <li>Saved choice lists and generated reports linked to your account.</li>
-        <li>Payment and donation records (amount, status, transaction ID) — never full card details, which are handled entirely by our payment gateway.</li>
+        <li>Questions you ask the AI counselor and its answers (stored so we can enforce the daily limit and improve answers).</li>
         <li>Basic usage analytics (e.g. which pages are viewed, whether a report was generated) collected in a privacy-conscious way, without unnecessary personal identifiers.</li>
       </ul>
       <h2>2. How We Use It</h2>
       <p>
         We use your data to generate personalized recommendations, save your choice
-        lists, process payments/donations, respond to support requests, and improve the
+        lists, respond to support requests, and improve the
         platform. We do not sell your rank, category, or personal data to third parties.
       </p>
       <h2>3. Data Sharing</h2>
       <p>
         We share data only with service providers necessary to operate the platform
-        (e.g. hosting, database, payment gateway, email delivery), each bound by their
+        (e.g. hosting, database, authentication, AI provider), each bound by their
         own confidentiality and data-protection obligations.
       </p>
       <h2>4. Your Rights</h2>

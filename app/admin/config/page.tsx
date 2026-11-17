@@ -1,9 +1,5 @@
-﻿import {
-  PAYMENTS_ENABLED,
-  PRICE_PAISE,
-  DONATION_PRESETS_PAISE,
-  AI_DAILY_QUESTION_LIMIT_FREE,
-  AI_DAILY_QUESTION_LIMIT_PAID,
+import {
+  AI_DAILY_QUESTION_LIMIT,
   MIN_RECOMMENDED_CHOICES,
   MIN_RECOMMENDED_SAFE_CHOICES,
   CLASSIFICATION_THRESHOLDS,
@@ -19,33 +15,26 @@ function ConfigRow({ label, value }: { label: string; value: string | number }) 
   );
 }
 
-export default function AdminPricingPage() {
+export default function AdminConfigPage() {
   return (
     <div>
-      <h2 className="text-lg font-semibold text-slate-900">Pricing & Config</h2>
+      <h2 className="text-lg font-semibold text-slate-900">Runtime Config</h2>
       <p className="mt-1 text-sm text-slate-500">
         Read-only view of current runtime configuration from lib/config.ts. Editing here is not
         yet supported - change the source file and redeploy to update these values.
       </p>
 
       <div className="mt-6 rounded-xl border border-slate-200 bg-white p-5">
-        <h3 className="text-sm font-semibold text-slate-800">Payments</h3>
+        <h3 className="text-sm font-semibold text-slate-800">App</h3>
         <div className="mt-2">
           <ConfigRow label="App Mode" value={APP_MODE} />
-          <ConfigRow label="Payments Enabled" value={PAYMENTS_ENABLED ? "true" : "false"} />
-          <ConfigRow label="Report Price" value={`Rs. ${PRICE_PAISE / 100}`} />
-          <ConfigRow
-            label="Donation Presets"
-            value={DONATION_PRESETS_PAISE.map((p) => `Rs. ${p / 100}`).join(", ")}
-          />
         </div>
       </div>
 
       <div className="mt-4 rounded-xl border border-slate-200 bg-white p-5">
         <h3 className="text-sm font-semibold text-slate-800">AI Chat Limits</h3>
         <div className="mt-2">
-          <ConfigRow label="Free Tier Daily Questions" value={AI_DAILY_QUESTION_LIMIT_FREE} />
-          <ConfigRow label="Paid Tier Daily Questions" value={AI_DAILY_QUESTION_LIMIT_PAID} />
+          <ConfigRow label="Daily Questions per Student" value={AI_DAILY_QUESTION_LIMIT} />
         </div>
       </div>
 
