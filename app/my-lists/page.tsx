@@ -57,7 +57,7 @@ export default function MyListsPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10">
-      <h1 className="text-2xl font-bold text-slate-900">My Saved Lists</h1>
+      <h1 className="page-title">My Saved Lists</h1>
 
       {lists === null && <p className="mt-4 text-sm text-slate-500">Loading…</p>}
 
@@ -73,7 +73,7 @@ export default function MyListsPage() {
           <button
             key={list.id}
             onClick={() => openList(list)}
-            className="block w-full rounded-lg border border-slate-200 bg-white p-4 text-left hover:border-brand-300 hover:bg-brand-50"
+            className="card block w-full p-4 text-left transition hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md"
           >
             <div className="flex items-center justify-between">
               <span className="font-semibold text-slate-900">

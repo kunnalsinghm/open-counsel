@@ -55,7 +55,8 @@ function LoginForm() {
 
   return (
     <div className="mx-auto max-w-sm px-4 py-16">
-      <h1 className="text-2xl font-bold text-slate-900">
+      <div className="card p-6 sm:p-8">
+      <h1 className="page-title">
         {mode === "login" ? "Log in" : "Create an account"}
       </h1>
       <p className="mt-1 text-sm text-slate-500">
@@ -65,17 +66,17 @@ function LoginForm() {
       </p>
 
       <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-        <label className="block text-sm">
+        <label className="block text-sm font-medium text-slate-700">
           Email
           <input
             type="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 w-full rounded-md border border-slate-300 p-2"
+            className="field"
           />
         </label>
-        <label className="block text-sm">
+        <label className="block text-sm font-medium text-slate-700">
           Password
           <input
             type="password"
@@ -83,17 +84,18 @@ function LoginForm() {
             minLength={6}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 w-full rounded-md border border-slate-300 p-2"
+            className="field"
           />
         </label>
 
         {error && (
-          <div className="rounded-md border border-red-200 bg-red-50 p-2 text-sm text-red-700">
+          <div role="alert"
+            className="rounded-xl border border-red-200 bg-red-50 p-2.5 text-sm text-red-700">
             {error}
           </div>
         )}
         {message && (
-          <div className="rounded-md border border-emerald-200 bg-emerald-50 p-2 text-sm text-emerald-700">
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-2.5 text-sm text-emerald-700">
             {message}
           </div>
         )}
@@ -101,7 +103,7 @@ function LoginForm() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-lg bg-brand-600 px-4 py-2 font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
+          className="btn-primary w-full"
         >
           {loading ? "Please wait…" : mode === "login" ? "Log in" : "Sign up"}
         </button>
@@ -113,10 +115,11 @@ function LoginForm() {
           setError(null);
           setMessage(null);
         }}
-        className="mt-4 text-sm text-brand-600 underline"
+        className="mt-4 text-sm font-medium text-brand-600 hover:underline"
       >
         {mode === "login" ? "New here? Create an account" : "Already have an account? Log in"}
       </button>
+      </div>
     </div>
   );
 }

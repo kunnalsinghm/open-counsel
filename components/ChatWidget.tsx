@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
-import { MessageCircle, X, Send } from "lucide-react";
+import { MessageCircle, X, Send, Sparkles } from "lucide-react";
+import { motion } from "framer-motion";
 
 interface Msg {
   role: "user" | "assistant";
@@ -87,22 +88,33 @@ export default function ChatWidget() {
 
   if (!open) {
     return (
-      <button
+      <motion.button
+        initial={{ scale: 0.6, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        whileHover={{ scale: 1.06 }}
+        whileTap={{ scale: 0.95 }}
         onClick={() => setOpen(true)}
-        className="fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg hover:bg-brand-700"
+        className="fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-brand-600 text-white shadow-xl shadow-brand-600/30 hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-300"
         aria-label="Open AI Admission Counselor"
       >
         <MessageCircle className="h-6 w-6" />
-      </button>
+      </motion.button>
     );
   }
 
   return (
-    <div className="fixed bottom-5 right-5 z-40 flex h-[28rem] w-80 flex-col rounded-xl border border-slate-200 bg-white shadow-2xl">
-      <div className="flex items-center justify-between border-b border-slate-200 p-3">
-        <span className="text-sm font-semibold text-slate-800">AI Admission Counselor</span>
-        <button onClick={() => setOpen(false)} aria-label="Close chat">
-          <X className="h-4 w-4 text-slate-400" />
+    <motion.div
+      initial={{ opacity: 0, y: 16, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
+      className="fixed bottom-5 right-5 z-40 flex h-[28rem] max-h-[calc(100vh-2.5rem)] w-[calc(100vw-2.5rem)] max-w-sm origin-bottom-right flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/20"
+    >
+      <div className="flex items-center justify-between bg-brand-600 p-3 text-white">
+        <span className="flex items-center gap-2 text-sm font-semibold">
+          <Sparkles className="h-4 w-4" aria-hidden /> AI Admission Counselor
+        </span>
+        <button onClick={() => setOpen(false)} aria-label="Close chat" className="rounded-md p-1 hover:bg-white/15">
+          <X className="h-4 w-4" />
         </button>
       </div>
       <div className="flex-1 space-y-2 overflow-y-auto p-3">
@@ -113,7 +125,7 @@ export default function ChatWidget() {
               <button
                 key={p}
                 onClick={() => send(p)}
-                className="block w-full rounded-md border border-slate-200 p-2 text-left text-xs text-slate-600 hover:bg-slate-50"
+                className="block w-full rounded-xl border border-slate-200 p-2.5 text-left text-xs text-slate-600 transition hover:border-brand-300 hover:bg-brand-50"
               >
                 {p}
               </button>
@@ -123,8 +135,8 @@ export default function ChatWidget() {
         {messages.map((m, i) => (
           <div
             key={i}
-            className={`whitespace-pre-wrap rounded-lg p-2 text-xs ${
-              m.role === "user" ? "ml-6 bg-brand-600 text-white" : "mr-6 bg-slate-100 text-slate-800"
+            className={`whitespace-pre-wrap rounded-2xl px-3 py-2 text-xs leading-relaxed ${
+              m.role === "user" ? "ml-6 rounded-br-sm bg-brand-600 text-white" : "mr-6 rounded-bl-sm bg-slate-100 text-slate-800"
             }`}
           >
             {m.content}
@@ -138,12 +150,12 @@ export default function ChatWidget() {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && send(input)}
           placeholder="Ask about cutoffs or rules..."
-          className="flex-1 rounded-md border border-slate-300 p-2 text-xs"
+          className="flex-1 rounded-xl border border-slate-300 p-2 text-xs focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100"
         />
-        <button onClick={() => send(input)} className="rounded-md bg-brand-600 px-3 text-white">
+        <button onClick={() => send(input)} aria-label="Send message" className="rounded-xl bg-brand-600 px-3 text-white transition hover:bg-brand-700">
           <Send className="h-4 w-4" />
         </button>
       </div>
-    </div>
+    </motion.div>
   );
 }

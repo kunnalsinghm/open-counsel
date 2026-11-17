@@ -81,27 +81,30 @@ export default function ProfileForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mx-auto max-w-2xl space-y-8 px-4 py-10">
-      <h1 className="text-2xl font-bold text-slate-900">Build My Choice List</h1>
+    <form onSubmit={handleSubmit} className="mx-auto max-w-2xl space-y-6 px-4 py-10">
+      <div>
+        <h1 className="page-title">Build My Choice List</h1>
+        <p className="mt-1 text-sm text-slate-500">Four short steps. Nothing is saved unless you choose to save your list.</p>
+      </div>
 
-      <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-5">
-        <h2 className="font-semibold text-slate-800">1. Counseling</h2>
+      <section className="card space-y-4 p-5 sm:p-6">
+        <h2 className="flex items-center gap-3 text-lg font-semibold text-slate-900"><span className="step-badge">1</span>Counseling</h2>
         <div className="grid grid-cols-2 gap-4">
-          <label className="text-sm">
+          <label className="text-sm font-medium text-slate-700">
             Exam
             <select
-              className="mt-1 w-full rounded-md border border-slate-300 p-2"
+              className="field"
               value={form.examSystemCode}
               onChange={(e) => setForm({ ...form, examSystemCode: e.target.value })}
             >
               <option value="JOSAA">JoSAA</option>
             </select>
           </label>
-          <label className="text-sm">
+          <label className="text-sm font-medium text-slate-700">
             Year
             <input
               type="number"
-              className="mt-1 w-full rounded-md border border-slate-300 p-2"
+              className="field"
               value={form.year}
               onChange={(e) => setForm({ ...form, year: Number(e.target.value) })}
             />
@@ -109,38 +112,39 @@ export default function ProfileForm() {
         </div>
       </section>
 
-      <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-5">
-        <h2 className="font-semibold text-slate-800">2. Rank</h2>
+      <section className="card space-y-4 p-5 sm:p-6">
+        <h2 className="flex items-center gap-3 text-lg font-semibold text-slate-900"><span className="step-badge">2</span>Rank</h2>
         <p className="text-xs text-slate-500">
           JoSAA allocates NIT / IIIT / GFTI seats using your JEE Main rank, and IIT seats
           using your JEE Advanced rank — these are different exams with different rank
           pools. Fill in whichever apply to you.
         </p>
         <div className="grid grid-cols-2 gap-4">
-          <label className="text-sm">
+          <label className="text-sm font-medium text-slate-700">
             JEE Main CRL Rank
             <input
               type="number"
-              className="mt-1 w-full rounded-md border border-slate-300 p-2"
+              className="field"
               value={form.crlRank}
               onChange={(e) => setForm({ ...form, crlRank: e.target.value })}
               placeholder="e.g. 18421"
             />
           </label>
-          <label className="text-sm">
+          <label className="text-sm font-medium text-slate-700">
             JEE Main Category Rank (optional)
             <input
               type="number"
-              className="mt-1 w-full rounded-md border border-slate-300 p-2"
+              className="field"
               value={form.categoryRank}
               onChange={(e) => setForm({ ...form, categoryRank: e.target.value })}
             />
           </label>
         </div>
-        <div className="rounded-md bg-slate-50 p-3">
+        <div className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200">
           <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
             <input
               type="checkbox"
+              className="h-4 w-4 rounded border-slate-300 accent-brand-600"
               checked={form.appearedJeeAdvanced}
               onChange={(e) =>
                 setForm({ ...form, appearedJeeAdvanced: e.target.checked })
@@ -150,11 +154,11 @@ export default function ProfileForm() {
           </label>
           {form.appearedJeeAdvanced && (
             <div className="mt-3 grid grid-cols-2 gap-4">
-              <label className="text-sm">
+              <label className="text-sm font-medium text-slate-700">
                 JEE Advanced AIR (All-India Rank)
                 <input
                   type="number"
-                  className="mt-1 w-full rounded-md border border-slate-300 p-2"
+                  className="field"
                   value={form.jeeAdvancedRank}
                   onChange={(e) =>
                     setForm({ ...form, jeeAdvancedRank: e.target.value })
@@ -162,11 +166,11 @@ export default function ProfileForm() {
                   placeholder="e.g. 3200"
                 />
               </label>
-              <label className="text-sm">
+              <label className="text-sm font-medium text-slate-700">
                 JEE Advanced Category Rank (optional)
                 <input
                   type="number"
-                  className="mt-1 w-full rounded-md border border-slate-300 p-2"
+                  className="field"
                   value={form.jeeAdvancedCategoryRank}
                   onChange={(e) =>
                     setForm({ ...form, jeeAdvancedCategoryRank: e.target.value })
@@ -176,10 +180,10 @@ export default function ProfileForm() {
             </div>
           )}
         </div>
-        <label className="text-sm">
+        <label className="text-sm font-medium text-slate-700">
           Category
           <select
-            className="mt-1 w-full rounded-md border border-slate-300 p-2"
+            className="field"
             value={form.category}
             onChange={(e) => setForm({ ...form, category: e.target.value })}
           >
@@ -190,13 +194,13 @@ export default function ProfileForm() {
         </label>
       </section>
 
-      <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-5">
-        <h2 className="font-semibold text-slate-800">3. Eligibility</h2>
+      <section className="card space-y-4 p-5 sm:p-6">
+        <h2 className="flex items-center gap-3 text-lg font-semibold text-slate-900"><span className="step-badge">3</span>Eligibility</h2>
         <div className="grid grid-cols-2 gap-4">
-          <label className="text-sm">
+          <label className="text-sm font-medium text-slate-700">
             Gender / Seat Pool eligibility
             <select
-              className="mt-1 w-full rounded-md border border-slate-300 p-2"
+              className="field"
               value={form.gender}
               onChange={(e) => setForm({ ...form, gender: e.target.value as any })}
             >
@@ -205,10 +209,10 @@ export default function ProfileForm() {
               <option value="OTHER">Other</option>
             </select>
           </label>
-          <label className="text-sm">
+          <label className="text-sm font-medium text-slate-700">
             Seat Pool
             <select
-              className="mt-1 w-full rounded-md border border-slate-300 p-2"
+              className="field"
               value={form.seatPool}
               onChange={(e) => setForm({ ...form, seatPool: e.target.value as any })}
             >
@@ -216,10 +220,10 @@ export default function ProfileForm() {
               <option value="Female-Only">Female-Only</option>
             </select>
           </label>
-          <label className="text-sm">
+          <label className="text-sm font-medium text-slate-700">
             Home State
             <select
-              className="mt-1 w-full rounded-md border border-slate-300 p-2"
+              className="field"
               value={form.homeState}
               onChange={(e) => setForm({ ...form, homeState: e.target.value })}
             >
@@ -228,10 +232,10 @@ export default function ProfileForm() {
               ))}
             </select>
           </label>
-          <label className="text-sm">
+          <label className="text-sm font-medium text-slate-700">
             Domicile State
             <select
-              className="mt-1 w-full rounded-md border border-slate-300 p-2"
+              className="field"
               value={form.domicileState}
               onChange={(e) => setForm({ ...form, domicileState: e.target.value })}
             >
@@ -240,10 +244,10 @@ export default function ProfileForm() {
               ))}
             </select>
           </label>
-          <label className="text-sm">
+          <label className="text-sm font-medium text-slate-700">
             Quota
             <select
-              className="mt-1 w-full rounded-md border border-slate-300 p-2"
+              className="field"
               value={form.quota}
               onChange={(e) => setForm({ ...form, quota: e.target.value })}
             >
@@ -255,8 +259,8 @@ export default function ProfileForm() {
         </div>
       </section>
 
-      <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-5">
-        <h2 className="font-semibold text-slate-800">4. Preferences</h2>
+      <section className="card space-y-4 p-5 sm:p-6">
+        <h2 className="flex items-center gap-3 text-lg font-semibold text-slate-900"><span className="step-badge">4</span>Preferences</h2>
         <div>
           <p className="mb-2 text-sm text-slate-600">Preferred branches</p>
           <div className="flex flex-wrap gap-2">
@@ -267,10 +271,9 @@ export default function ProfileForm() {
                 onClick={() =>
                   setForm({ ...form, preferredBranches: toggle(form.preferredBranches, b) })
                 }
-                className={`rounded-full border px-3 py-1 text-sm ${
-                  form.preferredBranches.includes(b)
-                    ? "border-brand-600 bg-brand-600 text-white"
-                    : "border-slate-300 bg-white text-slate-700"
+                aria-pressed={form.preferredBranches.includes(b)}
+                className={`chip ${
+                  form.preferredBranches.includes(b) ? "chip-on" : "chip-off"
                 }`}
               >
                 {b}
@@ -291,10 +294,9 @@ export default function ProfileForm() {
                     preferredInstituteTypes: toggle(form.preferredInstituteTypes, t),
                   })
                 }
-                className={`rounded-full border px-3 py-1 text-sm ${
-                  form.preferredInstituteTypes.includes(t)
-                    ? "border-brand-600 bg-brand-600 text-white"
-                    : "border-slate-300 bg-white text-slate-700"
+                aria-pressed={form.preferredInstituteTypes.includes(t)}
+                className={`chip ${
+                  form.preferredInstituteTypes.includes(t) ? "chip-on" : "chip-off"
                 }`}
               >
                 {t}
@@ -318,10 +320,11 @@ export default function ProfileForm() {
                 type="button"
                 key={val}
                 onClick={() => setForm({ ...form, preferenceWeighting: val })}
-                className={`flex-1 rounded-md border px-3 py-2 text-sm ${
+                aria-pressed={form.preferenceWeighting === val}
+                className={`flex-1 rounded-xl border px-3 py-2.5 text-sm transition ${
                   form.preferenceWeighting === val
-                    ? "border-brand-600 bg-brand-50 font-semibold text-brand-700"
-                    : "border-slate-300 bg-white text-slate-700"
+                    ? "border-brand-600 bg-brand-50 font-semibold text-brand-700 ring-2 ring-brand-100"
+                    : "border-slate-300 bg-white text-slate-700 hover:border-brand-300"
                 }`}
               >
                 {label}
@@ -332,7 +335,8 @@ export default function ProfileForm() {
       </section>
 
       {error && (
-        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <div role="alert"
+          className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {error}
         </div>
       )}
@@ -340,7 +344,7 @@ export default function ProfileForm() {
       <button
         type="submit"
         disabled={submitting}
-        className="w-full rounded-lg bg-brand-600 px-6 py-3 text-base font-semibold text-white shadow hover:bg-brand-700 disabled:opacity-60"
+        className="btn-primary w-full py-3 text-base"
       >
         {submitting ? "Generating…" : "Generate My Recommendations"}
       </button>

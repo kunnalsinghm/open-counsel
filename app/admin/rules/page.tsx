@@ -128,7 +128,7 @@ export default function AdminRulesPage() {
         </div>
         <button
           onClick={() => setShowNewForm((v) => !v)}
-          className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+          className="btn-primary"
         >
           {showNewForm ? "Cancel" : "+ Add Rule"}
         </button>
@@ -141,33 +141,33 @@ export default function AdminRulesPage() {
       )}
 
       {showNewForm && (
-        <div className="mt-4 rounded-xl border border-slate-200 bg-white p-5">
+        <div className="mt-4 card p-5">
           <h3 className="text-sm font-semibold text-slate-800">New Rule</h3>
           <div className="mt-3 grid gap-3">
             <input
               placeholder="Topic (e.g. FREEZE, FLOAT, SLIDE, WITHDRAWAL, REFUND)"
               value={newForm.topic}
               onChange={(e) => setNewForm({ ...newForm, topic: e.target.value })}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100"
             />
             <input
               placeholder="Title"
               value={newForm.title}
               onChange={(e) => setNewForm({ ...newForm, title: e.target.value })}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100"
             />
             <textarea
               placeholder="Rule body text"
               value={newForm.ruleBody}
               onChange={(e) => setNewForm({ ...newForm, ruleBody: e.target.value })}
               rows={3}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100"
             />
             <input
               placeholder="Official URL (optional)"
               value={newForm.officialUrl}
               onChange={(e) => setNewForm({ ...newForm, officialUrl: e.target.value })}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100"
             />
             <button
               onClick={createRule}
@@ -187,29 +187,29 @@ export default function AdminRulesPage() {
       ) : (
         <div className="mt-6 space-y-3">
           {rules.map((rule) => (
-            <div key={rule.id} className="rounded-xl border border-slate-200 bg-white p-5">
+            <div key={rule.id} className="card p-5">
               {editingId === rule.id ? (
                 <div className="grid gap-3">
                   <input
                     value={editForm.topic}
                     onChange={(e) => setEditForm({ ...editForm, topic: e.target.value })}
-                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100"
                   />
                   <input
                     value={editForm.title}
                     onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100"
                   />
                   <textarea
                     value={editForm.ruleBody}
                     onChange={(e) => setEditForm({ ...editForm, ruleBody: e.target.value })}
                     rows={3}
-                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100"
                   />
                   <input
                     value={editForm.officialUrl}
                     onChange={(e) => setEditForm({ ...editForm, officialUrl: e.target.value })}
-                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100"
                   />
                   <div className="flex gap-2">
                     <button
@@ -221,7 +221,7 @@ export default function AdminRulesPage() {
                     </button>
                     <button
                       onClick={cancelEdit}
-                      className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                      className="btn-ghost"
                     >
                       Cancel
                     </button>

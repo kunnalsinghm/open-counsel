@@ -7,7 +7,8 @@ import { exportCsv, exportPdf } from "@/lib/export";
 import { lintChoiceList } from "@/lib/linter";
 import { createClient } from "@/lib/supabase/client";
 import type { ChoiceListItem, LintIssue, StudentProfileInput } from "@/lib/types";
-import { AlertTriangle, Download, FileText, Save } from "lucide-react";
+import { AlertTriangle, ArrowRight, Download, FileText, Save } from "lucide-react";
+import CountUp from "@/components/ui/CountUp";
 import Link from "next/link";
 
 export default function ResultsPage() {
@@ -62,7 +63,7 @@ export default function ResultsPage() {
     }
   }
 
-  if (!profile) return <div className="p-8 text-center text-slate-500">Loading...</div>;
+  if (!profile) return <div className="p-8 text-center text-slate-500" role="status">Loading your list...</div>;
 
   const dream = items.filter((i) => i.riskBand === "DREAM");
   const target = items.filter((i) => i.riskBand === "TARGET");
@@ -73,48 +74,48 @@ export default function ResultsPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
-      <section className="rounded-xl border border-slate-200 bg-white p-5">
-        <h1 className="text-xl font-bold text-slate-900">Your Admission Snapshot</h1>
-        <div className="mt-2 grid grid-cols-2 gap-2 text-sm text-slate-600 sm:grid-cols-4">
-          <p><span className="font-semibold">JEE Main Rank:</span> {jeeMainRank ? jeeMainRank.toLocaleString("en-IN") : "-"}</p>
+      <section className="card p-5 sm:p-6">
+        <h1 className="page-title">Your Admission Snapshot</h1>
+        <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm text-slate-600 sm:grid-cols-4">
+          <p><span className="font-semibold text-slate-800">JEE Main Rank:</span> {jeeMainRank ? jeeMainRank.toLocaleString("en-IN") : "-"}</p>
           {jeeAdvRank && (
-            <p><span className="font-semibold">JEE Advanced Rank:</span> {jeeAdvRank.toLocaleString("en-IN")}</p>
+            <p><span className="font-semibold text-slate-800">JEE Advanced Rank:</span> {jeeAdvRank.toLocaleString("en-IN")}</p>
           )}
-          <p><span className="font-semibold">Category:</span> {profile.category}</p>
-          <p><span className="font-semibold">Home State:</span> {profile.homeState}</p>
-          <p><span className="font-semibold">Counseling:</span> {profile.examSystemCode}</p>
+          <p><span className="font-semibold text-slate-800">Category:</span> {profile.category}</p>
+          <p><span className="font-semibold text-slate-800">Home State:</span> {profile.homeState}</p>
+          <p><span className="font-semibold text-slate-800">Counseling:</span> {profile.examSystemCode}</p>
         </div>
       </section>
 
       <section className="mt-4 grid grid-cols-3 gap-3 text-center">
-        <div className="rounded-lg border border-purple-200 bg-purple-50 p-3">
-          <p className="text-2xl font-bold text-purple-700">{dream.length}</p>
-          <p className="text-xs text-purple-700">Dream</p>
+        <div className="rounded-2xl border border-purple-200 bg-purple-50 p-4">
+          <p className="text-3xl font-extrabold text-purple-700"><CountUp value={dream.length} /></p>
+          <p className="text-sm font-medium text-purple-700">Dream</p>
         </div>
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-          <p className="text-2xl font-bold text-amber-700">{target.length}</p>
-          <p className="text-xs text-amber-700">Target</p>
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <p className="text-3xl font-extrabold text-amber-700"><CountUp value={target.length} /></p>
+          <p className="text-sm font-medium text-amber-700">Target</p>
         </div>
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-          <p className="text-2xl font-bold text-emerald-700">{safe.length}</p>
-          <p className="text-xs text-emerald-700">Safe</p>
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+          <p className="text-3xl font-extrabold text-emerald-700"><CountUp value={safe.length} /></p>
+          <p className="text-sm font-medium text-emerald-700">Safe</p>
         </div>
       </section>
 
-      <p className="mt-4 rounded-md bg-slate-100 p-3 text-xs text-slate-600">
+      <p className="notice mt-4">
         These are historical-data-based estimates, not guarantees. Verify against the latest
         official counseling notification before making irreversible decisions.
       </p>
 
       {issues.length > 0 && (
         <section className="mt-6 space-y-2">
-          <h2 className="flex items-center gap-2 font-semibold text-slate-800">
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
             <AlertTriangle className="h-4 w-4 text-amber-500" /> Potential Risks & Warnings
           </h2>
           {issues.map((issue, i) => (
             <div
               key={i}
-              className={`rounded-md border p-2 text-xs ${
+              className={`rounded-xl border p-3 text-sm ${
                 issue.severity === "ERROR"
                   ? "border-red-200 bg-red-50 text-red-700"
                   : "border-amber-200 bg-amber-50 text-amber-700"
@@ -127,13 +128,13 @@ export default function ResultsPage() {
       )}
 
       <section className="mt-6">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-semibold text-slate-800">Your Choice Strategy (drag to reorder)</h2>
-          <div className="flex gap-2">
+        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-lg font-semibold text-slate-900">Your Choice Strategy (drag to reorder)</h2>
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={handleSave}
               disabled={saveState === "saving" || saveState === "saved"}
-              className="flex items-center gap-1 rounded-md border border-brand-300 bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700 disabled:opacity-60"
+              className="btn-secondary btn-sm"
             >
               <Save className="h-3.5 w-3.5" />
               {saveState === "saved"
@@ -146,13 +147,13 @@ export default function ResultsPage() {
             </button>
             <button
               onClick={() => exportCsv(items)}
-              className="flex items-center gap-1 rounded-md border border-slate-300 px-3 py-1.5 text-xs text-slate-700"
+              className="btn-ghost btn-sm"
             >
               <FileText className="h-3.5 w-3.5" /> CSV
             </button>
             <button
               onClick={() => exportPdf(items, profile)}
-              className="flex items-center gap-1 rounded-md border border-slate-300 px-3 py-1.5 text-xs text-slate-700"
+              className="btn-ghost btn-sm"
             >
               <Download className="h-3.5 w-3.5" /> PDF
             </button>
@@ -162,12 +163,12 @@ export default function ResultsPage() {
         <ChoiceTable items={visibleItems} setItems={setItems} />
       </section>
 
-      <div className="mt-6 text-center">
+      <div className="mt-8 text-center">
         <Link
           href="/simulator"
-          className="inline-block rounded-lg border border-brand-300 bg-brand-50 px-5 py-2.5 text-sm font-semibold text-brand-700 hover:bg-brand-100"
+          className="btn-primary px-6 py-3 text-base"
         >
-          Simulate Round-by-Round Outcomes -&gt;
+          Simulate Round-by-Round Outcomes <ArrowRight className="h-4 w-4" aria-hidden />
         </Link>
       </div>
 

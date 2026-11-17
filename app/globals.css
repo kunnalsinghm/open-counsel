@@ -6,6 +6,65 @@
   --brand: #4f46e5;
 }
 
-body {
-  @apply bg-slate-50 text-slate-900;
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased;
+  }
+  :focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+  ::selection {
+    @apply bg-brand-200 text-brand-900;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-900/[0.03];
+  }
+  .field {
+    @apply mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100 disabled:bg-slate-100 disabled:text-slate-400;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-4 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .btn-primary {
+    @apply btn bg-brand-600 text-white shadow-md shadow-brand-600/25 hover:bg-brand-700 focus-visible:ring-brand-300;
+  }
+  .btn-secondary {
+    @apply btn border border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100 focus-visible:ring-brand-200;
+  }
+  .btn-ghost {
+    @apply btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 focus-visible:ring-slate-200;
+  }
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs;
+  }
+  .chip {
+    @apply cursor-pointer rounded-full border px-3.5 py-1.5 text-sm font-medium transition focus-visible:ring-4 focus-visible:ring-brand-200;
+  }
+  .chip-on {
+    @apply border-brand-600 bg-brand-600 text-white shadow-sm;
+  }
+  .chip-off {
+    @apply border-slate-300 bg-white text-slate-700 hover:border-brand-300 hover:bg-brand-50;
+  }
+  .notice {
+    @apply rounded-xl border border-slate-200 bg-slate-100/80 p-3 text-xs leading-relaxed text-slate-600;
+  }
+  .page-title {
+    @apply text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl;
+  }
+  .step-badge {
+    @apply inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-600 text-sm font-bold text-white;
+  }
 }

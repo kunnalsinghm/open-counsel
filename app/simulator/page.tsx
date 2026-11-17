@@ -87,11 +87,11 @@ export default function SimulatorPage() {
     load();
   }, [router]);
 
-  if (loading) return <div className="p-8 text-center text-slate-500">Simulating...</div>;
+  if (loading) return <div className="p-8 text-center text-slate-500" role="status">Simulating...</div>;
   if (error) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-10">
-        <div className="rounded-md border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>
+        <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>
       </div>
     );
   }
@@ -101,8 +101,8 @@ export default function SimulatorPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
-      <h1 className="text-2xl font-bold text-slate-900">Multi-Round Simulator</h1>
-      <p className="mt-2 flex items-start gap-2 rounded-md bg-slate-100 p-3 text-xs text-slate-600">
+      <h1 className="page-title">Multi-Round Simulator</h1>
+      <p className="notice mt-3 flex items-start gap-2">
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
         {disclaimer}
       </p>
@@ -115,10 +115,9 @@ export default function SimulatorPage() {
               setSelectedRound(o.round);
               setSelectedDecision(null);
             }}
-            className={`shrink-0 rounded-md border px-4 py-2 text-sm font-medium ${
-              selectedRound === o.round
-                ? "border-brand-600 bg-brand-600 text-white"
-                : "border-slate-300 bg-white text-slate-700"
+            aria-pressed={selectedRound === o.round}
+            className={`chip shrink-0 px-4 ${
+              selectedRound === o.round ? "chip-on" : "chip-off"
             }`}
           >
             Round {o.round}
@@ -127,13 +126,13 @@ export default function SimulatorPage() {
       </div>
 
       {current && (
-        <section className="mt-6 rounded-xl border border-slate-200 bg-white p-5">
+        <section className="card mt-6 p-5 sm:p-6">
           <div className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5 text-brand-600" />
             <h2 className="font-semibold text-slate-800">Round {current.round} - Likely Outcome</h2>
           </div>
 
-          <div className={`mt-3 rounded-md border p-3 text-sm ${OUTCOME_STYLES[current.outcomeLabel]}`}>
+          <div className={`mt-3 rounded-xl border p-3 text-sm ${OUTCOME_STYLES[current.outcomeLabel]}`}>
             <span className="font-semibold">{current.outcomeLabel}</span> - {current.explanation}
           </div>
 
@@ -147,10 +146,11 @@ export default function SimulatorPage() {
                   <button
                     key={d}
                     onClick={() => setSelectedDecision(d)}
-                    className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium ${
+                    aria-pressed={selectedDecision === d}
+                    className={`flex-1 rounded-xl border px-3 py-2.5 text-sm font-medium transition ${
                       selectedDecision === d
-                        ? "border-brand-600 bg-brand-50 text-brand-700"
-                        : "border-slate-300 bg-white text-slate-700"
+                        ? "border-brand-600 bg-brand-50 text-brand-700 ring-2 ring-brand-100"
+                        : "border-slate-300 bg-white text-slate-700 hover:border-brand-300"
                     }`}
                   >
                     {d.charAt(0) + d.slice(1).toLowerCase()}
@@ -159,7 +159,7 @@ export default function SimulatorPage() {
               </div>
 
               {selectedDecision && (
-                <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm">
+                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
                   <p className="font-medium text-slate-800">{decisionRule?.title ?? selectedDecision}</p>
                   <p className="mt-1 text-slate-600">{decisionRule?.body}</p>
                   <p className="mt-2 rounded-md bg-white p-2 text-xs text-slate-500">
@@ -171,7 +171,7 @@ export default function SimulatorPage() {
                       href={decisionRule.officialUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mt-2 inline-block text-xs text-brand-600 underline"
+                      className="mt-2 inline-block text-xs font-medium text-brand-600 hover:underline"
                     >
                       Official source
                     </a>
