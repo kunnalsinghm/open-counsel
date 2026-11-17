@@ -25,17 +25,11 @@ export const CLASSIFICATION_THRESHOLDS = {
   SAFE_MIN_GAP_PERCENT: 15,
 } as const;
 
-export const PAYMENTS_ENABLED =
-  (process.env.PAYMENTS_ENABLED ?? "false").toLowerCase() === "true";
-
 export const APP_MODE = process.env.APP_MODE ?? "development";
 
-export const PRICE_PAISE = 4900; // ₹49
-
-export const DONATION_PRESETS_PAISE = [2000, 5000, 10000]; // ₹20, ₹50, ₹100
-
-export const AI_DAILY_QUESTION_LIMIT_FREE = 5;
-export const AI_DAILY_QUESTION_LIMIT_PAID = 15;
+// OpenCounsel is free. This only limits how many AI counselor questions one
+// logged-in student can ask per rolling 24 hours, to stay inside the free AI tier.
+export const AI_DAILY_QUESTION_LIMIT = 5;
 
 export const MIN_RECOMMENDED_CHOICES = 30;
 export const MIN_RECOMMENDED_SAFE_CHOICES = 5;

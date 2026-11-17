@@ -5,10 +5,17 @@
  * Gemini API, which has a genuinely free tier (no credit card, no billing
  * setup) - get a key at https://aistudio.google.com/apikey.
  */
+export interface AiHistoryTurn {
+  role: "user" | "assistant";
+  content: string;
+}
+
 export interface AiCallParams {
   systemPrompt: string;
   userMessage: string;
   groundedContext: string;
+  /** Earlier turns of this conversation (oldest first). Optional. */
+  history?: AiHistoryTurn[];
 }
 
 export interface AiCallResult {
@@ -30,6 +37,14 @@ function mockResponse(params: AiCallParams): AiCallResult {
     model: "mock",
     estimatedCostPaise: 0,
   };
+}
+
+function buildContents(params: AiCallParams) {
+  const past = (params.history ?? []).map((t) => ({
+    role: t.role === "assistant" ? "model" : "user",
+    parts: [{ text: t.content }],
+  }));
+  return [...past, { role: "user", parts: [{ text: buildUserContent(params) }] }];
 }
 
 function buildUserContent(params: AiCallParams): string {
@@ -54,7 +69,7 @@ export async function callAi(params: AiCallParams): Promise<AiCallResult> {
       headers: { "content-type": "application/json", "x-goog-api-key": AI_API_KEY },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: params.systemPrompt }] },
-        contents: [{ role: "user", parts: [{ text: buildUserContent(params) }] }],
+        contents: buildContents(params),
         generationConfig: { maxOutputTokens: 1024, thinkingConfig: { thinkingLevel: "low" } },
       }),
     });
@@ -99,6 +114,10 @@ export async function callAi(params: AiCallParams): Promise<AiCallResult> {
  * can pipe straight through to the client. Falls back to a single mock
  * chunk when no API key is configured.
  */
+export function currentModelName(): string {
+  return AI_API_KEY ? AI_MODEL : "mock";
+}
+
 export function streamAi(params: AiCallParams): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
 
@@ -123,7 +142,7 @@ export function streamAi(params: AiCallParams): ReadableStream<Uint8Array> {
           headers: { "content-type": "application/json", "x-goog-api-key": AI_API_KEY as string },
           body: JSON.stringify({
             systemInstruction: { parts: [{ text: params.systemPrompt }] },
-            contents: [{ role: "user", parts: [{ text: buildUserContent(params) }] }],
+            contents: buildContents(params),
             generationConfig: { maxOutputTokens: 1024, thinkingConfig: { thinkingLevel: "low" } },
           }),
         });

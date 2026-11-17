@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db/client";
 import { createClient } from "@/lib/supabase/server";
+import { ensureUser } from "@/lib/ensure-user";
 
 export interface AdminUser {
   id: string;
@@ -15,6 +16,9 @@ export async function getAdminUser(): Promise<AdminUser | null> {
   } = await supabase.auth.getUser();
 
   if (!user) return null;
+
+  // Creates the users row and promotes ADMIN_EMAIL to admin if needed.
+  await ensureUser(user);
 
   const [dbUser] = await db
     .select()

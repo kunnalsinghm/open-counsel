@@ -1,4 +1,4 @@
-﻿/**
+/**
  * merge_duplicate_institutes.ts
  *
  * Merges "old mock" institute rows into their real-data counterparts.

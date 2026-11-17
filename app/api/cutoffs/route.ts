@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq, and, like } from "drizzle-orm";
+import { eq, and, ilike } from "drizzle-orm";
+import { escapeLike } from "@/lib/sql-utils";
 import { db, schema } from "@/db/client";
 
 export async function GET(req: NextRequest) {
@@ -27,7 +28,7 @@ export async function GET(req: NextRequest) {
   if (year) conditions.push(eq(schema.cutoffRecords.year, year));
   if (round) conditions.push(eq(schema.cutoffRecords.round, round));
   if (branchCode) conditions.push(eq(schema.branches.shortCode, branchCode));
-  if (instituteName) conditions.push(like(schema.institutes.name, `%${instituteName}%`));
+  if (instituteName) conditions.push(ilike(schema.institutes.name, `%${escapeLike(instituteName)}%`));
 
   const rows = await db
     .select({

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { eq, and } from "drizzle-orm";
+import { eq, and, ne, sql, type SQL } from "drizzle-orm";
 import { db, schema } from "@/db/client";
 import { generateChoiceList } from "@/lib/recommendation-engine";
 import { lintChoiceList } from "@/lib/linter";
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
   const parsed = ProfileSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: "Invalid profile.", issues: parsed.error.flatten() },
+      { error: "Invalid profile.", issues: z.flattenError(parsed.error) },
       { status: 400 }
     );
   }
@@ -74,6 +74,19 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // The engine only ever keeps rows that match the student's quota, category and seat pool
+  // (and, for HS/OS, the institute's state), so filter in SQL instead of loading the whole
+  // table and discarding most of it in JavaScript. The engine still re-checks every rule.
+  const filters: SQL[] = [
+    eq(schema.cutoffRecords.examSystemId, examSystem.id),
+    eq(schema.cutoffRecords.isUnavailable, false),
+    eq(schema.cutoffRecords.quota, profile.quota),
+    eq(schema.cutoffRecords.category, profile.category),
+    eq(schema.cutoffRecords.seatPool, profile.seatPool),
+  ];
+  if (profile.quota === "HS") filters.push(eq(schema.institutes.state, profile.homeState));
+  if (profile.quota === "OS") filters.push(ne(schema.institutes.state, profile.homeState));
+
   const rawCutoffs = await db
     .select({
       cutoff: schema.cutoffRecords,
@@ -83,6 +96,13 @@ export async function POST(req: NextRequest) {
     .from(schema.cutoffRecords)
     .innerJoin(schema.institutes, eq(schema.cutoffRecords.instituteId, schema.institutes.id))
     .innerJoin(schema.branches, eq(schema.cutoffRecords.branchId, schema.branches.id))
+    .where(and(...filters));
+
+  // Latest year available for this exam overall (not just the filtered rows), so the
+  // answer does not change depending on which quota the student picked.
+  const [{ latestYear: examLatestYear }] = await db
+    .select({ latestYear: sql<number | null>`max(${schema.cutoffRecords.year})` })
+    .from(schema.cutoffRecords)
     .where(
       and(
         eq(schema.cutoffRecords.examSystemId, examSystem.id),
@@ -90,11 +110,11 @@ export async function POST(req: NextRequest) {
       )
     );
 
-  if (rawCutoffs.length === 0) {
+  if (examLatestYear === null) {
     return NextResponse.json(
       {
         error:
-          "DATA_UNAVAILABLE: no cutoff data has been published yet for this exam. Run `npm run db:seed` for demo data or wait for the admin to publish a dataset.",
+          "DATA_UNAVAILABLE: no cutoff data has been published yet for this exam. An admin needs to upload a cutoff CSV first.",
       },
       { status: 503 }
     );
@@ -118,7 +138,7 @@ export async function POST(req: NextRequest) {
     closingRank: r.cutoff.closingRank,
   }));
 
-  const latestYear = Math.max(...cutoffRows.map((r) => r.year));
+  const latestYear = Number(examLatestYear);
 
   const items = generateChoiceList(cutoffRows, profile, { latestYear });
   const issues = lintChoiceList(items, profile);

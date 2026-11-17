@@ -1,4 +1,4 @@
-﻿import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vitest";
 import { lintChoiceList } from "./linter";
 import type { ChoiceListItem, StudentProfileInput } from "./types";
 

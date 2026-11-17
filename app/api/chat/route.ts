@@ -2,54 +2,75 @@ import { NextRequest, NextResponse } from "next/server";
 import { and, eq, gte, sql } from "drizzle-orm";
 import { db, schema } from "@/db/client";
 import { createClient } from "@/lib/supabase/server";
-import { queryCounselingRule, queryCutoffs } from "@/lib/ai/tools";
+import { ensureUser } from "@/lib/ensure-user";
+import { listInstituteNames, queryCounselingRule, queryCutoffs } from "@/lib/ai/tools";
 import { routeIntent } from "@/lib/ai/router";
-import { streamAi } from "@/lib/ai/provider";
-import { AI_DAILY_QUESTION_LIMIT_FREE } from "@/lib/config";
+import { extractCutoffQuery, isQueryTooVague } from "@/lib/ai/extract";
+import { withCompletionHook } from "@/lib/ai/log-stream";
+import { currentModelName, streamAi, type AiHistoryTurn } from "@/lib/ai/provider";
+import { AI_DAILY_QUESTION_LIMIT } from "@/lib/config";
+
+// Runs on every request and may stream for a while.
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
+const MAX_MESSAGE_CHARS = 1000;
+const MAX_HISTORY_TURNS = 6;
 
 const SYSTEM_PROMPT = `You are the OpenCounsel AI Admission Counselor.
 Rules you must always follow:
 - Never invent cutoff ranks, fees, eligibility rules, deadlines, or seat rules.
 - Only state factual cutoff/rule information that appears in the "grounded context" provided to you.
 - If grounded context says DATA_UNAVAILABLE, say clearly that the information isn't available and suggest checking the official portal.
+- If grounded context says NEEDS_MORE_DETAIL, ask the student which institute and branch they mean (and their category / quota if relevant). Do not guess.
+- If a cutoff row has isDemoData true, tell the student that figure is demo data, not an official JoSAA number.
+- When you quote a cutoff, always mention its year, round, quota and category.
 - Be concise. For simple questions (one topic, a definition, a yes/no), answer in 2-4 sentences with at most one short source citation. Do not use headers or bullet sections for simple questions.
 - Only use a structured format (Short Answer / Evidence / What I Recommend) for genuinely complex, multi-part questions where structure actually helps.
 - Always end every response with exactly this line on its own: "Verify the latest official counseling notification before making an irreversible decision."
 - You do not decide eligibility or final choice ordering - the deterministic recommendation engine does that. You explain and assist only.`;
 
+function sanitizeHistory(raw: unknown): AiHistoryTurn[] {
+  if (!Array.isArray(raw)) return [];
+  const turns: AiHistoryTurn[] = [];
+  for (const t of raw) {
+    if (
+      t &&
+      (t.role === "user" || t.role === "assistant") &&
+      typeof t.content === "string" &&
+      t.content.trim()
+    ) {
+      turns.push({ role: t.role, content: t.content.slice(0, MAX_MESSAGE_CHARS * 2) });
+    }
+  }
+  return turns.slice(-MAX_HISTORY_TURNS);
+}
+
 export async function POST(req: NextRequest) {
-  // Auth is required: this endpoint calls a real, rate-limited third-party
-  // AI API once AI_API_KEY is set, so an anonymous open pipe would be a
-  // direct cost/abuse risk. Login is already free and frictionless
-  // elsewhere in the app, so this is a low-cost way to close that gap.
+  // Login is required: this endpoint calls a rate-limited third-party AI API, so an
+  // anonymous open pipe would be a direct abuse risk. Login is free.
   const supabase = createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json(
-      { error: "Please log in to use the AI counselor." },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: "Please log in to use the AI counselor." }, { status: 401 });
   }
 
   const body = await req.json().catch(() => null);
-  if (!body?.message) {
+  if (!body || typeof body.message !== "string" || !body.message.trim()) {
     return NextResponse.json({ error: "message is required" }, { status: 400 });
   }
-  const message: string = body.message;
-  const examSystemCode: string = body.examSystemCode ?? "JOSAA";
+  const message: string = body.message.trim().slice(0, MAX_MESSAGE_CHARS);
+  const examSystemCode: string = typeof body.examSystemCode === "string" ? body.examSystemCode : "JOSAA";
+  const history = sanitizeHistory(body.history);
 
-  // Daily question limit, enforced against real chat_messages rows rather
-  // than an in-memory counter, so it survives server restarts and works
-  // correctly across multiple instances.
-  //
-  // NOTE: AI_DAILY_QUESTION_LIMIT_PAID exists in config.ts but there's no
-  // "isPaid"/tier column on the users table yet (payments are still mocked
-  // - see lib/payments/provider.ts), so every logged-in user currently
-  // gets the FREE limit. Once a real paid tier exists, branch on that flag
-  // here to use AI_DAILY_QUESTION_LIMIT_PAID instead.
+  // chat_sessions.user_id references users.id, so the row must exist first.
+  await ensureUser(user);
+
+  // Daily limit, counted from real chat_messages rows so it survives restarts and
+  // works across instances.
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const [{ count: questionsToday }] = await db
     .select({ count: sql<number>`count(*)::int` })
@@ -63,10 +84,10 @@ export async function POST(req: NextRequest) {
       )
     );
 
-  if (questionsToday >= AI_DAILY_QUESTION_LIMIT_FREE) {
+  if (questionsToday >= AI_DAILY_QUESTION_LIMIT) {
     return NextResponse.json(
       {
-        error: `You've reached today's limit of ${AI_DAILY_QUESTION_LIMIT_FREE} AI counselor questions. Please try again tomorrow.`,
+        error: `You've reached today's limit of ${AI_DAILY_QUESTION_LIMIT} AI counselor questions. Please try again tomorrow.`,
       },
       { status: 429 }
     );
@@ -74,8 +95,10 @@ export async function POST(req: NextRequest) {
 
   const intent = routeIntent(message);
   let groundedContext = "";
+  let toolUsed: string | null = null;
 
   if (intent === "RULE") {
+    toolUsed = "counseling_rules";
     const topicPatterns: Record<string, RegExp> = {
       FREEZE: /freeze/i,
       FLOAT: /float/i,
@@ -95,65 +118,90 @@ export async function POST(req: NextRequest) {
       }, {} as Record<string, unknown>)
     );
   } else if (intent === "CUTOFF") {
-    const result = await queryCutoffs({ examSystemCode });
-    groundedContext = JSON.stringify(result).slice(0, 4000);
+    toolUsed = "cutoffs";
+    // Look up only what the student actually asked about, not an arbitrary sample.
+    const known = await listInstituteNames(examSystemCode);
+    const q = extractCutoffQuery(message, known);
+    if (isQueryTooVague(q)) {
+      groundedContext =
+        "NEEDS_MORE_DETAIL: the question does not name an institute or a branch, so no cutoff rows were retrieved.";
+    } else {
+      const result = await queryCutoffs({
+        examSystemCode,
+        instituteNames: q.instituteNames,
+        branchTerms: q.branchTerms,
+        category: q.category,
+        quota: q.quota,
+        year: q.year,
+        round: q.round,
+      });
+      groundedContext = JSON.stringify({
+        filtersUsed: {
+          institutes: q.instituteNames,
+          branch: q.branchTerms,
+          category: q.category ?? "any",
+          quota: q.quota ?? "any",
+          year: q.year ?? "latest first",
+          round: q.round ?? "latest first",
+        },
+        ...result,
+      }).slice(0, 6000);
+    }
   } else {
     groundedContext = "No database lookup was needed for this question.";
   }
 
-  // Create a session for this exchange and log the user's message
-  // immediately - this is also what the rate-limit count above reads from.
-  const [session] = await db
-    .insert(schema.chatSessions)
-    .values({ userId: user.id })
-    .returning();
+  // One session per conversation: reuse the client's session id if it is ours.
+  let sessionId: string | null = null;
+  if (typeof body.sessionId === "string" && body.sessionId) {
+    const [owned] = await db
+      .select({ id: schema.chatSessions.id })
+      .from(schema.chatSessions)
+      .where(and(eq(schema.chatSessions.id, body.sessionId), eq(schema.chatSessions.userId, user.id)))
+      .limit(1);
+    if (owned) sessionId = owned.id;
+  }
+  if (!sessionId) {
+    const [created] = await db.insert(schema.chatSessions).values({ userId: user.id }).returning();
+    sessionId = created.id;
+  }
+  const activeSessionId = sessionId;
 
+  // Log the question first: the rate-limit count above reads from this table.
   await db.insert(schema.chatMessages).values({
-    sessionId: session.id,
+    sessionId: activeSessionId,
     role: "user",
     content: message,
+    toolUsed,
   });
 
-  const stream = streamAi({
+  const model = currentModelName();
+  const source = streamAi({
     systemPrompt: SYSTEM_PROMPT,
     userMessage: message,
     groundedContext,
+    history,
   });
 
-  // Tee the stream: one branch goes to the client immediately, the other is
-  // accumulated in the background and logged once complete. This is a
-  // fire-and-forget write - it assumes a long-lived server process (this
-  // app runs on Fly.io per fly.toml), not a serverless function that gets
-  // torn down the instant the response is sent.
-  const [clientStream, logStream] = stream.tee();
+  // The assistant reply is saved before the stream closes. Serverless hosts can freeze
+  // a function the moment the response ends, so a write after that point may be lost.
+  const stream = withCompletionHook(source, async (full) => {
+    await db.insert(schema.chatMessages).values({
+      sessionId: activeSessionId,
+      role: "assistant",
+      content: full,
+      toolUsed,
+      model,
+    });
+  });
 
-  void (async () => {
-    try {
-      const reader = logStream.getReader();
-      const decoder = new TextDecoder();
-      let full = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        full += decoder.decode(value, { stream: true });
-      }
-      await db.insert(schema.chatMessages).values({
-        sessionId: session.id,
-        role: "assistant",
-        content: full,
-      });
-    } catch (err) {
-      console.error("Failed to log AI response:", err);
-    }
-  })();
-
-  return new Response(clientStream, {
+  return new Response(stream, {
     headers: {
       "content-type": "text/plain; charset=utf-8",
+      "cache-control": "no-store",
       "x-chat-intent": intent,
-      "x-questions-remaining-today": String(
-        Math.max(0, AI_DAILY_QUESTION_LIMIT_FREE - questionsToday - 1)
-      ),
+      "x-chat-session": activeSessionId,
+      "x-questions-remaining-today": String(Math.max(0, AI_DAILY_QUESTION_LIMIT - questionsToday - 1)),
     },
   });
 }

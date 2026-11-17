@@ -1,4 +1,4 @@
-import { eq, and } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/db/client";
 import { parseCsv, csvRowsToObjects } from "./csv";
 import { validateRow, findDuplicatesInFile, REQUIRED_COLUMNS } from "./validate";
@@ -96,7 +96,18 @@ export async function runIngestion(
     .where(eq(schema.institutes.examSystemId, examSystem.id));
   const instituteByName = new Map(existingInstitutes.map((i) => [i.name, i]));
 
-  const existingBranches = await db.select().from(schema.branches);
+  const existingBranches =
+    existingInstitutes.length === 0
+      ? []
+      : await db
+          .select()
+          .from(schema.branches)
+          .where(
+            inArray(
+              schema.branches.instituteId,
+              existingInstitutes.map((i) => i.id)
+            )
+          );
   const branchByKey = new Map(existingBranches.map((b) => [`${b.instituteId}::${b.shortCode}`, b]));
 
   const newInstitutes = new Set<string>();
@@ -131,89 +142,148 @@ export async function runIngestion(
     return { ...baseResult, inserted: 0, updated: 0, skippedAsDuplicateOfPublished: 0, committed: false };
   }
 
-  let inserted = 0;
-  let updated = 0;
-  let skippedAsDuplicateOfPublished = 0;
+  // Everything below runs in ONE transaction using a handful of bulk statements instead of
+  // ~3 queries per row. A failure part-way rolls the whole import back, so a file is never
+  // left half-imported.
+  const INSERT_CHUNK = 1000;
+  const UPDATE_CHUNK = 50;
+  const cutoffKey = (
+    instituteId: string,
+    branchId: string,
+    r: { year: number; round: number; quota: string; seatPool: string; category: string }
+  ) => [instituteId, branchId, r.year, r.round, r.quota, r.seatPool, r.category].join("::");
 
-  for (const { row } of finalValidRows) {
-    let institute = instituteByName.get(row.instituteName);
-    if (!institute) {
-      const [created] = await db
+  const result = await db.transaction(async (tx) => {
+    // 1. Institutes that do not exist yet.
+    const instituteInfo = new Map<string, CutoffCsvRow>();
+    for (const { row } of finalValidRows) {
+      if (!instituteByName.has(row.instituteName) && !instituteInfo.has(row.instituteName)) {
+        instituteInfo.set(row.instituteName, row);
+      }
+    }
+    const instituteValues = Array.from(instituteInfo.values()).map((row) => ({
+      examSystemId: examSystem.id,
+      name: row.instituteName,
+      instituteType: row.instituteType,
+      state: row.state,
+    }));
+    for (let i = 0; i < instituteValues.length; i += INSERT_CHUNK) {
+      const created = await tx
         .insert(schema.institutes)
-        .values({
-          examSystemId: examSystem.id,
-          name: row.instituteName,
-          instituteType: row.instituteType,
-          state: row.state,
-        })
+        .values(instituteValues.slice(i, i + INSERT_CHUNK))
         .returning();
-      institute = created;
-      instituteByName.set(row.instituteName, institute);
+      for (const inst of created) instituteByName.set(inst.name, inst);
     }
 
-    let branch = branchByKey.get(`${institute.id}::${row.branchShortCode}`);
-    if (!branch) {
-      const [created] = await db
+    // 2. Branches that do not exist yet.
+    const branchInfo = new Map<string, { instituteId: string; name: string; shortCode: string }>();
+    for (const { row } of finalValidRows) {
+      const inst = instituteByName.get(row.instituteName)!;
+      const key = `${inst.id}::${row.branchShortCode}`;
+      if (!branchByKey.has(key) && !branchInfo.has(key)) {
+        branchInfo.set(key, { instituteId: inst.id, name: row.branchName, shortCode: row.branchShortCode });
+      }
+    }
+    const branchValues = Array.from(branchInfo.values());
+    for (let i = 0; i < branchValues.length; i += INSERT_CHUNK) {
+      const created = await tx
         .insert(schema.branches)
-        .values({ instituteId: institute.id, name: row.branchName, shortCode: row.branchShortCode })
+        .values(branchValues.slice(i, i + INSERT_CHUNK))
         .returning();
-      branch = created;
-      branchByKey.set(`${institute.id}::${row.branchShortCode}`, branch);
+      for (const br of created) branchByKey.set(`${br.instituteId}::${br.shortCode}`, br);
     }
 
-    const [existingCutoff] = await db
-      .select()
+    // 3. Existing cutoffs for the years in this file, loaded once.
+    const years = Array.from(new Set(finalValidRows.map((r) => r.row.year)));
+    const existingCutoffs = await tx
+      .select({
+        id: schema.cutoffRecords.id,
+        instituteId: schema.cutoffRecords.instituteId,
+        branchId: schema.cutoffRecords.branchId,
+        year: schema.cutoffRecords.year,
+        round: schema.cutoffRecords.round,
+        quota: schema.cutoffRecords.quota,
+        seatPool: schema.cutoffRecords.seatPool,
+        category: schema.cutoffRecords.category,
+        dataVersion: schema.cutoffRecords.dataVersion,
+      })
       .from(schema.cutoffRecords)
       .where(
         and(
           eq(schema.cutoffRecords.examSystemId, examSystem.id),
-          eq(schema.cutoffRecords.instituteId, institute.id),
-          eq(schema.cutoffRecords.branchId, branch.id),
-          eq(schema.cutoffRecords.year, row.year),
-          eq(schema.cutoffRecords.round, row.round),
-          eq(schema.cutoffRecords.quota, row.quota),
-          eq(schema.cutoffRecords.seatPool, row.seatPool),
-          eq(schema.cutoffRecords.category, row.category)
+          years.length > 0 ? inArray(schema.cutoffRecords.year, years) : undefined
         )
-      )
-      .limit(1);
-
-    if (existingCutoff) {
-      if (shouldOverwrite) {
-        await db
-          .update(schema.cutoffRecords)
-          .set({
-            openingRank: row.openingRank,
-            closingRank: row.closingRank,
-            sourceUrl: row.sourceUrl,
-            sourceDocument,
-            dataVersion,
-          })
-          .where(eq(schema.cutoffRecords.id, existingCutoff.id));
-        updated++;
-      } else {
-        skippedAsDuplicateOfPublished++;
-      }
-      continue;
+      );
+    const existingByKey = new Map<string, { id: string; isMock: boolean }>();
+    for (const c of existingCutoffs) {
+      existingByKey.set(cutoffKey(c.instituteId, c.branchId, c), {
+        id: c.id,
+        isMock: c.dataVersion === "seed-v1",
+      });
     }
 
-    await db.insert(schema.cutoffRecords).values({
-      examSystemId: examSystem.id,
-      instituteId: institute.id,
-      branchId: branch.id,
-      year: row.year,
-      round: row.round,
-      quota: row.quota,
-      seatPool: row.seatPool,
-      category: row.category,
-      openingRank: row.openingRank,
-      closingRank: row.closingRank,
-      sourceUrl: row.sourceUrl,
-      sourceDocument,
-      dataVersion,
-    });
-    inserted++;
-  }
+    // 4. Split into inserts, updates and untouched duplicates.
+    const toInsert: (typeof schema.cutoffRecords.$inferInsert)[] = [];
+    const toUpdate: { id: string; row: CutoffCsvRow }[] = [];
+    let duplicatesOfPublished = 0;
+
+    for (const { row } of finalValidRows) {
+      const inst = instituteByName.get(row.instituteName)!;
+      const br = branchByKey.get(`${inst.id}::${row.branchShortCode}`)!;
+      const existing = existingByKey.get(cutoffKey(inst.id, br.id, row));
+
+      if (existing) {
+        // A generated demo ("seed-v1") row is never "published" data: real data always
+        // replaces it, even without --overwrite.
+        if (shouldOverwrite || existing.isMock) toUpdate.push({ id: existing.id, row });
+        else duplicatesOfPublished++;
+        continue;
+      }
+
+      toInsert.push({
+        examSystemId: examSystem.id,
+        instituteId: inst.id,
+        branchId: br.id,
+        year: row.year,
+        round: row.round,
+        quota: row.quota,
+        seatPool: row.seatPool,
+        category: row.category,
+        openingRank: row.openingRank,
+        closingRank: row.closingRank,
+        sourceUrl: row.sourceUrl,
+        sourceDocument,
+        dataVersion,
+      });
+    }
+
+    // 5. Write.
+    for (let i = 0; i < toInsert.length; i += INSERT_CHUNK) {
+      await tx.insert(schema.cutoffRecords).values(toInsert.slice(i, i + INSERT_CHUNK));
+    }
+    for (let i = 0; i < toUpdate.length; i += UPDATE_CHUNK) {
+      await Promise.all(
+        toUpdate.slice(i, i + UPDATE_CHUNK).map(({ id, row }) =>
+          tx
+            .update(schema.cutoffRecords)
+            .set({
+              openingRank: row.openingRank,
+              closingRank: row.closingRank,
+              sourceUrl: row.sourceUrl,
+              sourceDocument,
+              dataVersion,
+            })
+            .where(eq(schema.cutoffRecords.id, id))
+        )
+      );
+    }
+
+    return { inserted: toInsert.length, updated: toUpdate.length, duplicatesOfPublished };
+  });
+
+  const inserted = result.inserted;
+  const updated = result.updated;
+  const skippedAsDuplicateOfPublished = result.duplicatesOfPublished;
 
   return { ...baseResult, inserted, updated, skippedAsDuplicateOfPublished, committed: true };
 }

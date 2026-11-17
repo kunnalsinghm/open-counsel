@@ -1,4 +1,4 @@
-﻿# --- deps: install dependencies with build tools for better-sqlite3 ---
+# --- deps: install dependencies with build tools for better-sqlite3 ---
 FROM node:20-bookworm-slim AS deps
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \

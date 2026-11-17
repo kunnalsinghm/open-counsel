@@ -1,4 +1,4 @@
-﻿app = "opencounsel"
+app = "opencounsel"
 primary_region = "bom"
 
 [build]
@@ -7,7 +7,6 @@ primary_region = "bom"
   PORT = "3000"
   NODE_ENV = "production"
   APP_MODE = "production"
-  PAYMENTS_ENABLED = "false"
 
 [[mounts]]
   source = "opencounsel_data"

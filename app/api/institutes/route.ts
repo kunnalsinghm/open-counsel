@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq, and, like } from "drizzle-orm";
+import { eq, and, ilike } from "drizzle-orm";
+import { escapeLike } from "@/lib/sql-utils";
 import { db, schema } from "@/db/client";
 
 export async function GET(req: NextRequest) {
@@ -27,7 +28,7 @@ export async function GET(req: NextRequest) {
     .where(
       and(
         eq(schema.institutes.examSystemId, examSystem.id),
-        like(schema.institutes.name, `%${q}%`)
+        ilike(schema.institutes.name, `%${escapeLike(q)}%`)
       )
     )
     .limit(10);

@@ -1,8 +1,13 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin-guard";
 import { runIngestion } from "@/lib/ingestion/import-core";
 
-const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10MB — plenty for a round's worth of cutoffs
+// Vercel rejects request bodies over ~4.5MB before they reach this code, so stay under it.
+// Bigger files: use the CLI instead -> npm run ingest -- path/to/file.csv --exam JOSAA --version <label> --commit
+const MAX_FILE_BYTES = 4 * 1024 * 1024;
+
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   const guard = await requireAdminApi();
@@ -19,7 +24,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Expected a 'file' field containing a CSV." }, { status: 400 });
   }
   if (file.size > MAX_FILE_BYTES) {
-    return NextResponse.json({ error: `File too large (max ${MAX_FILE_BYTES / 1024 / 1024}MB).` }, { status: 400 });
+    return NextResponse.json({ error: `File too large (max ${MAX_FILE_BYTES / 1024 / 1024}MB on the website). Split it by year/round, or run the CLI: npm run ingest -- <file> --exam JOSAA --version <label> --commit` }, { status: 400 });
   }
   if (!file.name.toLowerCase().endsWith(".csv")) {
     return NextResponse.json({ error: "Only .csv files are accepted." }, { status: 400 });

@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { db, schema } from "@/db/client";
 import { requireAdminApi } from "@/lib/admin-guard";
