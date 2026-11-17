@@ -10,7 +10,8 @@ export async function GET() {
   let database = "ok";
   try {
     await db.execute(sql`SELECT 1`);
-  } catch {
+  } catch (err) {
+    console.error("health: database check failed:", err);
     database = "error";
   }
   return NextResponse.json(

@@ -30,6 +30,18 @@ const ProfileSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  try {
+    return await handlePost(req);
+  } catch (err) {
+    console.error("recommendations: unhandled error:", err);
+    return NextResponse.json(
+      { error: "Server error: could not load cutoff data. Please try again shortly." },
+      { status: 500 }
+    );
+  }
+}
+
+async function handlePost(req: NextRequest) {
   let body: unknown;
   try {
     body = await req.json();
